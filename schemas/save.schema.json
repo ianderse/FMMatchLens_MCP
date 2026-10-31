@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "saveId": {
+          "type": "string",
+          "format": "starts_with",
+          "pattern": "^s_.*"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "seasonStart": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "saveId",
+        "displayName",
+        "seasonStart",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

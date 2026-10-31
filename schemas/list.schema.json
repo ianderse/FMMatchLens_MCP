@@ -1,0 +1,387 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "const": "list"
+        },
+        "saveId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "saveName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "filters": {
+          "type": "object",
+          "properties": {
+            "saveId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "teamId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "season": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "saveId",
+            "teamId",
+            "season"
+          ],
+          "additionalProperties": false
+        },
+        "page": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "returned": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "totalMatching": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "nextCursor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "truncated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit",
+            "returned",
+            "totalMatching",
+            "nextCursor",
+            "truncated"
+          ],
+          "additionalProperties": false
+        },
+        "matches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "matchId": {
+                "type": "string"
+              },
+              "saveId": {
+                "type": "string"
+              },
+              "upstreamMatchId": {
+                "type": "string"
+              },
+              "matchDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "season": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "competition": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "home": {
+                "type": "object",
+                "properties": {
+                  "teamId": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "teamId",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              "away": {
+                "type": "object",
+                "properties": {
+                  "teamId": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "teamId",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              "managedSide": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "home",
+                      "away"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "observed": {
+                    "type": "object",
+                    "properties": {
+                      "home": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "away": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "at": {
+                        "type": "object",
+                        "properties": {
+                          "period": {
+                            "type": "number"
+                          },
+                          "tick": {
+                            "type": "number"
+                          },
+                          "displayMinute": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "period",
+                          "tick",
+                          "displayMinute"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "home",
+                      "away",
+                      "at"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "final": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "home": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "away": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "basis": {
+                            "type": "string",
+                            "const": "manual"
+                          }
+                        },
+                        "required": [
+                          "home",
+                          "away",
+                          "basis"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "enum": [
+                      "observed_not_final",
+                      "final_manual",
+                      "final"
+                    ]
+                  }
+                },
+                "required": [
+                  "observed",
+                  "final",
+                  "label"
+                ],
+                "additionalProperties": false
+              },
+              "selectedRecordingRevisionId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "object",
+                "properties": {
+                  "integrity": {
+                    "type": "string",
+                    "enum": [
+                      "valid",
+                      "recovered_prefix",
+                      "invalid"
+                    ]
+                  },
+                  "coverage": {
+                    "type": "string",
+                    "enum": [
+                      "full_match",
+                      "partial",
+                      "unknown"
+                    ]
+                  },
+                  "completion": {
+                    "type": "string",
+                    "enum": [
+                      "completed",
+                      "completed_manual",
+                      "in_progress",
+                      "unknown"
+                    ]
+                  }
+                },
+                "required": [
+                  "integrity",
+                  "coverage",
+                  "completion"
+                ],
+                "additionalProperties": false
+              },
+              "format": {
+                "type": "string"
+              },
+              "conflictingRevisions": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "managedTeamId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "opponent": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "teamId": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "teamId",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "matchId",
+              "saveId",
+              "upstreamMatchId",
+              "matchDate",
+              "season",
+              "competition",
+              "home",
+              "away",
+              "managedSide",
+              "result",
+              "selectedRecordingRevisionId",
+              "status",
+              "format",
+              "conflictingRevisions",
+              "managedTeamId",
+              "opponent"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "query",
+        "saveId",
+        "saveName",
+        "filters",
+        "page",
+        "matches"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

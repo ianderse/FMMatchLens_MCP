@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "const": "list_players"
+        },
+        "saveId": {
+          "type": "string"
+        },
+        "page": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "returned": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "totalMatching": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "nextCursor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "truncated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit",
+            "returned",
+            "totalMatching",
+            "nextCursor",
+            "truncated"
+          ],
+          "additionalProperties": {}
+        },
+        "players": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "playerId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "identityStatus": {
+                "type": "string",
+                "enum": [
+                  "persistent",
+                  "linked",
+                  "match_local"
+                ]
+              },
+              "matches": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "playerId",
+              "name",
+              "identityStatus",
+              "matches"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "summary": {
+          "type": "object",
+          "properties": {
+            "persistent": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "linked": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "matchLocal": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "persistent",
+            "linked",
+            "matchLocal"
+          ],
+          "additionalProperties": {}
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "query",
+        "saveId",
+        "page",
+        "players",
+        "summary",
+        "warnings"
+      ],
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

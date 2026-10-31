@@ -1,0 +1,1 @@
+{ "name": "@fmmi/live", "version": "0.1.0", "private": true, "type": "module", "exports": { ".": "./src/index.ts" }, "dependencies": { "@fmmi/model": "0.1.0", "@fmmi/fmlens-adapter": "0.1.0", "@fmmi/analytics": "0.1.0", "zod": "4.6.7" } }

@@ -1,0 +1,1122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "const": "threat"
+        },
+        "matchId": {
+          "type": "string"
+        },
+        "saveId": {
+          "type": "string"
+        },
+        "recordingRevisionId": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "fmlens_archive"
+            },
+            "format": {
+              "type": "string"
+            },
+            "startTick": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "endTick": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "kind",
+            "format",
+            "startTick",
+            "endTick"
+          ],
+          "additionalProperties": false
+        },
+        "metricDictionaryVersion": {
+          "type": "string"
+        },
+        "window": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tick": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "sequence": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "period",
+                "tick",
+                "sequence"
+              ],
+              "additionalProperties": false
+            },
+            "to": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tick": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "sequence": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "period",
+                "tick",
+                "sequence"
+              ],
+              "additionalProperties": false
+            },
+            "bounds": {
+              "type": "string",
+              "const": "[from,to)"
+            },
+            "display": {
+              "type": "object",
+              "properties": {
+                "fromMinute": {
+                  "type": "number"
+                },
+                "toMinute": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "fromMinute",
+                "toMinute"
+              ],
+              "additionalProperties": false
+            },
+            "resolution": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "object",
+                  "properties": {
+                    "exact": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "exact"
+                  ],
+                  "additionalProperties": {}
+                },
+                "to": {
+                  "type": "object",
+                  "properties": {
+                    "exact": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "exact"
+                  ],
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "from",
+            "to",
+            "bounds",
+            "display",
+            "resolution"
+          ],
+          "additionalProperties": {}
+        },
+        "coverage": {
+          "type": "string",
+          "enum": [
+            "complete_for_window",
+            "partial_for_window",
+            "unavailable"
+          ]
+        },
+        "capture": {
+          "type": "object",
+          "properties": {
+            "integrity": {
+              "type": "string",
+              "enum": [
+                "valid",
+                "recovered_prefix",
+                "invalid"
+              ]
+            },
+            "coverage": {
+              "type": "string",
+              "enum": [
+                "full_match",
+                "partial",
+                "unknown"
+              ]
+            },
+            "completion": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "completed_manual",
+                "in_progress",
+                "unknown"
+              ]
+            },
+            "partial": {
+              "type": "boolean"
+            },
+            "statement": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "endBoundary": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tick": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "sequence": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "period",
+                "tick",
+                "sequence"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "integrity",
+            "coverage",
+            "completion",
+            "partial",
+            "statement",
+            "endBoundary"
+          ],
+          "additionalProperties": {}
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "observed": {
+              "type": "object",
+              "properties": {
+                "home": {
+                  "type": "number"
+                },
+                "away": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "home",
+                "away"
+              ],
+              "additionalProperties": {}
+            },
+            "label": {
+              "type": "string",
+              "enum": [
+                "observed_not_final",
+                "final_manual",
+                "final"
+              ]
+            }
+          },
+          "required": [
+            "observed",
+            "label"
+          ],
+          "additionalProperties": {}
+        },
+        "teams": {
+          "type": "object",
+          "properties": {
+            "home": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            },
+            "away": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "home",
+            "away"
+          ],
+          "additionalProperties": false
+        },
+        "metrics": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "unit": {
+                "type": "string"
+              },
+              "unitVerified": {
+                "type": "boolean"
+              },
+              "derivation": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "version",
+              "unit",
+              "unitVerified",
+              "derivation",
+              "confidence"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "threat": {
+          "type": "object",
+          "properties": {
+            "team": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            },
+            "opposition": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            },
+            "lanes": {
+              "type": "object",
+              "properties": {
+                "perspective": {
+                  "type": "string",
+                  "const": "attacking_team"
+                },
+                "ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "left",
+                      "centre",
+                      "right"
+                    ]
+                  }
+                },
+                "mirrorRule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "perspective",
+                "ids",
+                "mirrorRule"
+              ],
+              "additionalProperties": {}
+            },
+            "byLane": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "lane": {
+                    "type": "string",
+                    "enum": [
+                      "left",
+                      "centre",
+                      "right"
+                    ]
+                  },
+                  "defendingTeamFlank": {
+                    "type": "string",
+                    "enum": [
+                      "left",
+                      "centre",
+                      "right"
+                    ]
+                  },
+                  "shots": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "crosses": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "crossesCompleted": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "passesCompleted": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "finalThirdEntries": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "dangerAreaEntries": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "xg": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "number"
+                      },
+                      "attributedShots": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "unattributedShots": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "attributedShots",
+                      "unattributedShots"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "lane",
+                  "defendingTeamFlank",
+                  "shots",
+                  "crosses",
+                  "crossesCompleted",
+                  "passesCompleted",
+                  "finalThirdEntries",
+                  "dangerAreaEntries",
+                  "xg"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "reconciliation": {
+              "type": "object",
+              "properties": {
+                "shots": {
+                  "type": "object",
+                  "properties": {
+                    "byLane": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "withoutLocation": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "events": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "counter": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "byLane",
+                    "withoutLocation",
+                    "events",
+                    "counter"
+                  ],
+                  "additionalProperties": {}
+                },
+                "crosses": {
+                  "type": "object",
+                  "properties": {
+                    "byLane": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "withoutLocation": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "events": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "counter": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "byLane",
+                    "withoutLocation",
+                    "events",
+                    "counter"
+                  ],
+                  "additionalProperties": {}
+                },
+                "crossesCompleted": {
+                  "type": "object",
+                  "properties": {
+                    "byLane": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "withoutLocation": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "events": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "counter": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "byLane",
+                    "withoutLocation",
+                    "events",
+                    "counter"
+                  ],
+                  "additionalProperties": {}
+                },
+                "passesCompleted": {
+                  "type": "object",
+                  "properties": {
+                    "byLane": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "withoutLocation": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "events": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "counter": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "byLane",
+                    "withoutLocation",
+                    "events",
+                    "counter"
+                  ],
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "shots",
+                "crosses",
+                "crossesCompleted",
+                "passesCompleted"
+              ],
+              "additionalProperties": {}
+            },
+            "goals": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "const": "context_only"
+                },
+                "statement": {
+                  "type": "string"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "tick": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "lane": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "left",
+                              "centre",
+                              "right"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "involvedInEvent": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "playerId": {
+                              "type": "string"
+                            },
+                            "roleInEvent": {
+                              "type": "string",
+                              "enum": [
+                                "event_actor",
+                                "event_receiver"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "playerId",
+                            "roleInEvent"
+                          ],
+                          "additionalProperties": {}
+                        }
+                      }
+                    },
+                    "required": [
+                      "tick",
+                      "lane",
+                      "involvedInEvent"
+                    ],
+                    "additionalProperties": {}
+                  }
+                }
+              },
+              "required": [
+                "label",
+                "statement",
+                "items"
+              ],
+              "additionalProperties": {}
+            },
+            "defensiveInvolvement": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "const": "recorded_events_not_performance"
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "kinds": {
+                      "type": "object",
+                      "properties": {
+                        "tackle_won": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "tackle_lost": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "interception": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "aerial_won": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "aerial_lost": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "tackle_won",
+                        "tackle_lost",
+                        "interception",
+                        "aerial_won",
+                        "aerial_lost"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "lanes": {
+                      "type": "object",
+                      "properties": {
+                        "left": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "centre": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "right": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "unknown": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "left",
+                        "centre",
+                        "right",
+                        "unknown"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "kinds",
+                    "lanes",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                },
+                "players": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "playerId": {
+                        "type": "string"
+                      },
+                      "involvement": {
+                        "type": "object",
+                        "properties": {
+                          "kinds": {
+                            "type": "object",
+                            "properties": {
+                              "tackle_won": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "tackle_lost": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "interception": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "aerial_won": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "aerial_lost": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "tackle_won",
+                              "tackle_lost",
+                              "interception",
+                              "aerial_won",
+                              "aerial_lost"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "lanes": {
+                            "type": "object",
+                            "properties": {
+                              "left": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "centre": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "right": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "unknown": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "left",
+                              "centre",
+                              "right",
+                              "unknown"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "total": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "kinds",
+                          "lanes",
+                          "total"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "playerId",
+                      "involvement"
+                    ],
+                    "additionalProperties": {}
+                  }
+                }
+              },
+              "required": [
+                "label",
+                "team",
+                "players"
+              ],
+              "additionalProperties": {}
+            },
+            "unavailable": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "not_recorded",
+                      "unsupported_version",
+                      "partial",
+                      "unverified_semantics",
+                      "missing_baseline",
+                      "unresolved_boundary",
+                      "zero_denominator",
+                      "not_applicable"
+                    ]
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "reason",
+                  "note"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "statements": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "team",
+            "opposition",
+            "lanes",
+            "byLane",
+            "reconciliation",
+            "goals",
+            "defensiveInvolvement",
+            "unavailable",
+            "statements"
+          ],
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "query",
+        "matchId",
+        "saveId",
+        "recordingRevisionId",
+        "source",
+        "metricDictionaryVersion",
+        "window",
+        "coverage",
+        "capture",
+        "result",
+        "teams",
+        "metrics",
+        "warnings",
+        "threat"
+      ],
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

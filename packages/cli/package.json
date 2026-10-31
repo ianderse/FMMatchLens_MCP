@@ -1,0 +1,1 @@
+{ "name": "@fmmi/cli", "version": "0.1.0", "private": true, "type": "module", "bin": { "fmmi": "./bin/fmmi.mjs" }, "exports": { ".": "./src/index.ts" }, "dependencies": { "@fmmi/model": "0.1.0", "@fmmi/fmlens-adapter": "0.1.0", "@fmmi/store": "0.1.0", "@fmmi/query": "0.1.0", "@fmmi/live": "0.1.0" } }

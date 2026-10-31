@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "const": "tactical_notes"
+        },
+        "saveId": {
+          "type": "string"
+        },
+        "page": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "returned": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "totalMatching": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "nextCursor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "truncated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit",
+            "returned",
+            "totalMatching",
+            "nextCursor",
+            "truncated"
+          ],
+          "additionalProperties": {}
+        },
+        "label": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "noteId": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "const": "manual"
+              },
+              "source": {
+                "type": "string",
+                "const": "user_entered"
+              }
+            },
+            "required": [
+              "noteId",
+              "confidence",
+              "source"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "observedFormationChanges": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "const": "observed_by_plugin"
+                }
+              },
+              "required": [
+                "source"
+              ],
+              "additionalProperties": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "query",
+        "saveId",
+        "page",
+        "label",
+        "notes",
+        "observedFormationChanges",
+        "warnings"
+      ],
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

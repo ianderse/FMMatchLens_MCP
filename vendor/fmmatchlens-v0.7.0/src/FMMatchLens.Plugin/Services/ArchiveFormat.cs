@@ -1,0 +1,71 @@
+using System.Text;
+
+namespace FMMatchLens.Plugin.Services;
+
+internal enum ArchiveCompression : byte
+{
+    None = 0,
+    Deflate = 1
+}
+
+internal sealed record ArchiveWriteOptions(
+    ArchiveCompression Compression,
+    int ChunkTicks,
+    int MaxChunkLatencyMilliseconds,
+    int QueueCapacity)
+{
+    public static ArchiveWriteOptions Default { get; } = new(
+        ArchiveCompression.Deflate,
+        128,
+        1_000,
+        8);
+}
+
+internal static class ArchiveWireFormat
+{
+    internal static readonly byte[] Magic = Encoding.ASCII.GetBytes("FMLENS2\0");
+
+    // The chunked archive format introduced by commit b28a3d2 is 2.1.
+    // Momentum-event sequence/completion fields and trajectories define 2.2.
+    // Team-manager metadata defines 2.3. Player birth date, nation UID, body
+    // type, and guide value define 2.4. Pitch dimensions in metadata define 2.5.
+    // Goalkeeper save breakdown fields, competition metadata, the fixed
+    // 64-bit player-traits field, and first/second-half team shots define 2.6.
+    // Static pre-match player match sharpness and season statistics, plus the
+    // authoritative match shirt name/number, retained contract squad number,
+    // quantized per-tick player speed/facing angle, and per-tick football XYZ
+    // coordinates stored as integer centimeters, plus team shirt number,
+    // background, and goalkeeper background colors, signed centimeter player
+    // XY, integer-meter cumulative distance deltas, and separate distance/stats
+    // change flags, optional speed/angle deltas with cyclic angle encoding,
+    // VarUInt movement keyframes, and per-axis football change flags define
+    // the 2.7 layout. The compact player-rating payload defines 2.8: rating-only
+    // PlayerStats fields are byte-delta encoded while fields already present in
+    // PlayerTickData are reused; per-player progressive passes are retained; raw
+    // goals conceded, chances created, offsides, headers lost, possession lost,
+    // presses attempted, presses won, shots outside the box, and sprints are retained in the compact vector;
+    // rating events, IP/OOP RoleDuty, and total eligible duration
+    // let the frontend reconstruct classification durations along the timeline;
+    // raw per-team W04/W05 context candidates are byte-delta encoded;
+    // match-level inputs are change-masked; the active 6700 baseline, both
+    // per-team +0x2A48 background inputs are stored once per archive. Role-to-
+    // category mappings and observed coefficients are frontend interpretation
+    // rules and are not stored in the archive.
+    // The file-header version is the sole authority for payload decoding; do not
+    // add an independent version byte inside ArchiveFrameCodec payloads.
+    internal const ushort StructureMajor = 2;
+    internal const ushort FirstSupportedStructureMinor = 1;
+    internal const ushort StructureMinor = 8;
+    internal const byte Legacy21BlockStructure = 1;
+    internal const byte Legacy21FramePayloadMarker = 1;
+}
+
+internal sealed class ArchiveFormatException : IOException
+{
+    public ArchiveFormatException(string code, string message) : base(message)
+    {
+        Code = code;
+    }
+
+    public string Code { get; }
+}

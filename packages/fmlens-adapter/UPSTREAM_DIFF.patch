@@ -1,0 +1,204 @@
+--- vendor/fmmatchlens-v0.7.0/frontend/src/api/archiveParser.ts
++++ packages/fmlens-adapter/src/upstream/archiveParser.ts
+@@ -8,19 +8,20 @@
+   RealtimePlayerMetadata,
+   RealtimeTeam,
+   RealtimeTeamMetadata,
+-} from "@/api/realtimeMatch"
+-import type { ParsedLocalArchive } from "@/api/localArchive"
+-import type { PlayerAttributes, PlayerPositionFamiliarities, PlayerProfile, PlayerSeasonDetailedStats, PlayerSeasonStats, PlayerSeasonStatsSlot, PlayerTacticalAssignment, TeamSide } from "@/types/match"
+-import { playerPositionLabels } from "@/types/match"
++} from "./realtimeTypes.ts"
++import type { ParsedLocalArchive } from "./localArchive.ts"
++import type { PlayerAttributes, PlayerPositionFamiliarities, PlayerProfile, PlayerSeasonDetailedStats, PlayerSeasonStats, PlayerSeasonStatsSlot, PlayerTacticalAssignment, TeamSide } from "./match.ts"
++import { playerPositionLabels } from "./match.ts"
+ import {
+   deriveRatingClassification,
+   observedRatingWeightConfiguration,
+   type RatingClassificationState,
+-} from "@/lib/ratingCalculator"
++} from "./ratingCalculator.ts"
+ 
+ const magic = "FMLENS2\0"
+ const archiveStructureMajor = 2
+-const firstSupportedStructureMinor = 1
++// FMMI: format 2.8 only (spec 2.2); upstream accepts 2.1-2.8.
++const firstSupportedStructureMinor = 8
+ const archiveStructureMinor = 8
+ const legacy21FramePayloadMarker = 1
+ const legacy21BlockStructure = 1
+@@ -41,6 +42,13 @@
+ const compactPlayerFields = allPlayerFields & ~(1n << 36n)
+ const version27CompactPlayerFields = version27PlayerFields & ~(1n << 36n)
+ 
++// FMMI: size bounds (spec 6.3 item 4) and a streaming frame sink to bound memory.
++export type ArchiveLimits = { maxFileBytes: number; maxBlocks: number; maxFrames: number; maxTotalUncompressedBytes: number }
++export const defaultArchiveLimits: ArchiveLimits = {
++  maxFileBytes: 256 * 1024 * 1024, maxBlocks: 4_096, maxFrames: 120_000, maxTotalUncompressedBytes: 512 * 1024 * 1024,
++}
++export type ParseOptions = { limits?: Partial<ArchiveLimits>; onFrame?: (frame: RealtimeFrame, ordinal: number) => void }
++
+ type ArchiveHeader = {
+   structureMajor: number
+   structureMinor: number
+@@ -69,7 +77,12 @@
+   awayGoals: number
+ }
+ 
+-export async function parseArchiveFile(buffer: ArrayBuffer, fileName: string): Promise<ParsedLocalArchive> {
++export async function parseArchiveFile(buffer: ArrayBuffer, fileName: string, options: ParseOptions = {}): Promise<ParsedLocalArchive> {
++  const limits = { ...defaultArchiveLimits, ...options.limits }
++  if (buffer.byteLength > limits.maxFileBytes) throw new ArchiveError("Archive exceeds the file size limit")
++  let truncatedTail = false
++  let declaredFrames = 0
++  let declaredUncompressed = 0
+   const reader = new ArchiveBufferReader(new Uint8Array(buffer))
+   const header = readHeader(reader)
+   const blocks: BlockReference[] = []
+@@ -104,7 +117,13 @@
+         metadata = decoded.metadata
+         metadataTimeline.push(decoded.metadata)
+       } else if (recordType === chunkRecord) {
+-        blocks.push(readBlock(reader, recordStart, header.structureMinor))
++        const block = readBlock(reader, recordStart, header.structureMinor)
++        declaredFrames += block.frameCount
++        declaredUncompressed += block.uncompressedLength
++        if (blocks.length >= limits.maxBlocks || declaredFrames > limits.maxFrames || declaredUncompressed > limits.maxTotalUncompressedBytes) {
++          throw new ArchiveError("Archive exceeds the block, frame or total size limit")
++        }
++        blocks.push(block)
+       } else if (recordType === ratingModelMetadataRecord) {
+         if (ratingModelMetadata != null) throw new ArchiveError("Rating model metadata is duplicated")
+         ratingModelMetadata = readRatingModelMetadata(new ArchiveBufferReader(readRecordPayload(reader, 32)))
+@@ -119,32 +138,46 @@
+         readRecordPayload(reader, maxRecordBytes)
+       }
+     } catch (error) {
+-      if (error instanceof ArchiveEndOfFileError && recordStart > 0) break
++      if (error instanceof ArchiveEndOfFileError && recordStart > 0) { truncatedTail = true; break }
+       throw error
+     }
+   }
+ 
+   const frames: RealtimeFrame[] = []
++  let frameTotal = 0
++  let firstFrame: RealtimeFrame | undefined
++  let lastFrame: RealtimeFrame | undefined
++  let blocksDecoded = 0
+   const ratingClassificationBySlot = new Map<number, RatingClassificationState>()
+   let blockError: unknown
+   for (const block of blocks) {
+     try {
+       const payload = await decompressBlock(block)
+-      frames.push(...readFrames(
++      const decodedFrames = readFrames(
+         payload, header.matchId, block.frameCount, block.startTick, block.endTick,
+         header.structureMinor, ratingModelMetadata, ratingClassificationBySlot,
+-      ))
++      )
++      // FMMI: with a sink, frames are streamed out per block and not retained.
++      for (const frame of decodedFrames) {
++        firstFrame ??= frame
++        lastFrame = frame
++        if (options.onFrame) options.onFrame(frame, frameTotal)
++        else frames.push(frame)
++        frameTotal += 1
++      }
++      blocksDecoded += 1
+     } catch (error) {
+       blockError = error
+       break
+     }
+   }
+-  if (frames.length === 0) {
++  if (frameTotal === 0) {
+     if (blockError instanceof Error) throw new Error(`Archive has no recoverable complete match frames: ${blockError.message}`)
+     throw new Error("Archive contains no complete match frames")
+   }
+ 
+-  const last = frames.at(-1)!
++  const last = lastFrame!
++  const first = firstFrame!
+   const recovered = blockError != null
+   return {
+     archive: {
+@@ -153,8 +186,8 @@
+       startedUnixMilliseconds: header.startedUnixMilliseconds,
+       endedUnixMilliseconds: recovered ? undefined : endedUnixMilliseconds,
+       ended: !recovered && endedUnixMilliseconds != null,
+-      frameCount: recovered ? frames.length : finalSummary?.frameCount ?? frames.length,
+-      firstTick: recovered ? frames[0].tick : finalSummary?.firstTick ?? frames[0].tick,
++      frameCount: recovered ? frameTotal : finalSummary?.frameCount ?? frameTotal,
++      firstTick: recovered ? first.tick : finalSummary?.firstTick ?? first.tick,
+       lastTick: recovered ? last.tick : finalSummary?.lastTick ?? last.tick,
+       matchDate: metadata?.matchDate,
+       homeGoals: recovered ? last.home.goals : finalSummary?.homeGoals ?? last.home.goals,
+@@ -165,6 +198,15 @@
+     metadataTimeline,
+     frames,
+     ratingConfiguration: observedRatingWeightConfiguration,
++    integrity: {
++      cleanClose: !recovered && !truncatedTail && endedUnixMilliseconds != null,
++      truncatedTail,
++      blockError: blockError instanceof Error ? blockError.message : undefined,
++      blocksDecoded,
++      framesDecoded: frameTotal,
++      lastValidatedTick: last.tick,
++      lastValidatedPeriod: last.period,
++    },
+   }
+ }
+ 
+@@ -1095,7 +1137,7 @@
+   return (~crc) >>> 0
+ }
+ 
+-class ArchiveError extends Error {}
++export class ArchiveError extends Error {}
+ class ArchiveEndOfFileError extends ArchiveError {}
+ 
+ class ArchiveBufferReader {
+--- vendor/fmmatchlens-v0.7.0/frontend/src/lib/ratingCalculator.ts
++++ packages/fmlens-adapter/src/upstream/ratingCalculator.ts
+@@ -4,8 +4,8 @@
+   RatingContributionGroup,
+   RealtimeRatingInputs,
+   RealtimeRatingModel,
+-} from "@/api/realtimeMatch"
+-import type { TeamSide } from "@/types/match"
++} from "./realtimeTypes.ts"
++import type { TeamSide } from "./match.ts"
+ 
+ export type RatingWeightConfiguration = {
+   weightsByCategoryBit: Map<number, number[]>
+--- vendor/fmmatchlens-v0.7.0/frontend/src/types/match.ts
++++ packages/fmlens-adapter/src/upstream/match.ts
+@@ -401,8 +401,8 @@
+   inPossession?: PlayerTacticalAssignment
+   outOfPossession?: PlayerTacticalAssignment
+   rating?: number
+-  ratingContribution?: import("@/api/realtimeMatch").RatingContribution
+-  resolveRatingContribution?: () => import("@/api/realtimeMatch").RatingContribution | undefined
++  ratingContribution?: import("./realtimeTypes.ts").RatingContribution
++  resolveRatingContribution?: () => import("./realtimeTypes.ts").RatingContribution | undefined
+   age?: number
+   isStarter: boolean
+   isOnPitch: boolean
+@@ -471,7 +471,7 @@
+     clubUid?: number
+     name: string
+     color?: string
+-    colorSource?: import("@/lib/teamColors").TeamColorSource
++    colorSource?: string /* FMMI: upstream TeamColorSource not vendored */
+     themeColors?: TeamThemeColors
+     logoPath?: string
+     logoUrl?: string
+@@ -484,7 +484,7 @@
+     clubUid?: number
+     name: string
+     color?: string
+-    colorSource?: import("@/lib/teamColors").TeamColorSource
++    colorSource?: string /* FMMI: upstream TeamColorSource not vendored */
+     themeColors?: TeamThemeColors
+     logoPath?: string
+     logoUrl?: string

@@ -1,0 +1,18 @@
+{
+  "name": "@fmmi/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "fmmi-mcp": "./bin/fmmi-mcp.mjs" },
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@fmmi/model": "0.1.0",
+    "@fmmi/analytics": "0.1.0",
+    "@fmmi/store": "0.1.0",
+    "@fmmi/query": "0.1.0",
+    "@fmmi/live": "0.1.0",
+    "@fmmi/remote": "0.1.0",
+    "@modelcontextprotocol/server": "2.4.0",
+    "zod": "4.6.7"
+  }
+}

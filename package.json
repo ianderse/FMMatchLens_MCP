@@ -1,0 +1,46 @@
+{
+  "name": "fmmatchlens-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "FM27 match intelligence (see FM27_FMMatchLens_Match_Intelligence_MCP_Spec.md). Slice 5: offline importer, fmmi CLI, season history, the read-only fmmi-mcp server (stdio, optional authenticated Streamable HTTP) and the optional loopback live reader.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "workspaces": [
+    "packages/model",
+    "packages/fmlens-adapter",
+    "packages/analytics",
+    "packages/store",
+    "packages/live",
+    "packages/query",
+    "packages/cli",
+    "packages/remote",
+    "packages/mcp"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "fmmi": "node packages/cli/bin/fmmi.mjs",
+    "schemas": "node scripts/gen-schemas.mts",
+    "docs:metrics": "node scripts/gen-metrics-doc.mts",
+    "audit": "node scripts/audit/audit.mts tests/fixtures/local/2026-08-31-Farnham-vs-Torquay-0-3.fmlens audit-output",
+    "audit:sanitize": "node scripts/audit/sanitize.mts audit-output/audit.json tests/fixtures/farnham-torquay-0-3.summary.json",
+    "fmmi-mcp": "node packages/mcp/bin/fmmi-mcp.mjs",
+    "review-check": "node scripts/review-check.mts"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.0.3",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "25.9.9",
+    "eslint": "10.14.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.0.5"
+  }
+}

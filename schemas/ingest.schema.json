@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ingested",
+                  "already_ingested",
+                  "identity_conflict",
+                  "continuation",
+                  "rejected"
+                ]
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "matchId": {
+                "type": "string"
+              },
+              "recordingRevisionId": {
+                "type": "string"
+              },
+              "integrity": {
+                "type": "string"
+              },
+              "coverage": {
+                "type": "string"
+              },
+              "completion": {
+                "type": "string"
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "invalid_input",
+                      "not_found",
+                      "ambiguous_selection",
+                      "identity_conflict",
+                      "revision_unavailable",
+                      "unsupported_version",
+                      "insufficient_coverage",
+                      "stale_snapshot",
+                      "storage_limit_exceeded",
+                      "internal_error"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "details": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "retryable": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "code",
+                  "message",
+                  "details",
+                  "retryable"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "file",
+              "status",
+              "warnings"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "results"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

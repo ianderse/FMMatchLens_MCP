@@ -1,0 +1,1 @@
+{ "name": "@fmmi/store", "version": "0.1.0", "private": true, "type": "module", "exports": { ".": "./src/index.ts" }, "dependencies": { "@fmmi/model": "0.1.0", "@fmmi/fmlens-adapter": "0.1.0", "@fmmi/analytics": "0.1.0", "better-sqlite3": "13.0.3" } }

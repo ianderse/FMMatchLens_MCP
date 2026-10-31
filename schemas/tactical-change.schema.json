@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "saveId": {
+          "type": "string"
+        },
+        "metricDictionaryVersion": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "aggregateKey": {
+              "type": "string"
+            },
+            "aggregates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "servedFromCatalog": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "servedFromMemory": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "builtThisCall": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "persistedThisCall": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "aggregateKey",
+            "aggregates",
+            "servedFromCatalog",
+            "servedFromMemory",
+            "builtThisCall",
+            "persistedThisCall"
+          ],
+          "additionalProperties": false
+        },
+        "coverage": {
+          "type": "string",
+          "enum": [
+            "complete_for_window",
+            "partial_for_window",
+            "unavailable"
+          ]
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "query": {
+          "type": "string",
+          "const": "tactical_change"
+        },
+        "team": {
+          "type": "object",
+          "properties": {
+            "teamId": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "teamId",
+            "name"
+          ],
+          "additionalProperties": {}
+        },
+        "note": {
+          "type": "object",
+          "properties": {
+            "noteId": {
+              "type": "string"
+            },
+            "confidence": {
+              "type": "string",
+              "const": "manual"
+            }
+          },
+          "required": [
+            "noteId",
+            "confidence"
+          ],
+          "additionalProperties": {}
+        },
+        "singleMatchComparison": {
+          "type": "boolean"
+        },
+        "within": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "available",
+                "unavailable"
+              ]
+            },
+            "confounders": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "status",
+            "confounders"
+          ],
+          "additionalProperties": {}
+        },
+        "across": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "available",
+                "unavailable"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": {}
+        },
+        "confounders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "saveId",
+        "metricDictionaryVersion",
+        "source",
+        "coverage",
+        "statements",
+        "warnings",
+        "metrics",
+        "query",
+        "team",
+        "note",
+        "singleMatchComparison",
+        "within",
+        "across",
+        "confounders"
+      ],
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,1 @@
+{ "name": "@fmmi/fmlens-adapter", "version": "0.1.0", "private": true, "type": "module", "license": "MIT", "exports": { ".": "./src/index.ts" }, "dependencies": { "@fmmi/model": "0.1.0" } }

@@ -1,0 +1,495 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "saveId": {
+          "type": "string"
+        },
+        "metricDictionaryVersion": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "aggregateKey": {
+              "type": "string"
+            },
+            "aggregates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "servedFromCatalog": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "servedFromMemory": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "builtThisCall": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "persistedThisCall": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "aggregateKey",
+            "aggregates",
+            "servedFromCatalog",
+            "servedFromMemory",
+            "builtThisCall",
+            "persistedThisCall"
+          ],
+          "additionalProperties": false
+        },
+        "coverage": {
+          "type": "string",
+          "enum": [
+            "complete_for_window",
+            "partial_for_window",
+            "unavailable"
+          ]
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "query": {
+          "type": "string",
+          "const": "player_trends"
+        },
+        "matches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "matchId": {
+                "type": "string"
+              },
+              "recordingRevisionId": {
+                "type": "string"
+              },
+              "date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "matchId",
+              "recordingRevisionId",
+              "date"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "players": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "playerId": {
+                "type": "string",
+                "format": "starts_with",
+                "pattern": "^pe_.*"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "persistent",
+                  "linked"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "windows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "lastN": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "minutes": {
+                      "type": "number"
+                    },
+                    "matchIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "matchMinutes": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    },
+                    "rates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "metric": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "nullReason": {
+                            "type": "string",
+                            "enum": [
+                              "not_recorded",
+                              "unsupported_version",
+                              "partial",
+                              "unverified_semantics",
+                              "missing_baseline",
+                              "unresolved_boundary",
+                              "zero_denominator",
+                              "not_applicable"
+                            ]
+                          },
+                          "numerator": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "denominator": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "contributing": {
+                            "type": "object",
+                            "properties": {
+                              "matches": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "minutes": {
+                                "type": "number"
+                              },
+                              "matchIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "matches",
+                              "minutes"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "excluded": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "matchId": {
+                                  "type": "string"
+                                },
+                                "reason": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "matchId",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "metric",
+                          "value",
+                          "numerator",
+                          "denominator",
+                          "contributing"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "contributing": {
+                      "type": "object",
+                      "properties": {
+                        "matches": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "matchIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "matches"
+                      ],
+                      "additionalProperties": {}
+                    },
+                    "opposition": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "scoreState": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "object",
+                              "properties": {
+                                "ticks": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "type": "number"
+                                  }
+                                },
+                                "minutes": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "type": "number"
+                                  }
+                                },
+                                "dominant": {
+                                  "type": "string",
+                                  "enum": [
+                                    "leading",
+                                    "drawing",
+                                    "trailing"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "ticks",
+                                "minutes",
+                                "dominant"
+                              ],
+                              "additionalProperties": {}
+                            }
+                          },
+                          "required": [
+                            "value"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "null"
+                            },
+                            "nullReason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "nullReason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "lastN",
+                    "minutes",
+                    "matchIds",
+                    "matchMinutes",
+                    "rates"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "required": [
+              "playerId",
+              "kind",
+              "name",
+              "windows"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "comparisons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "qualified",
+                  "suppressed"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "confounders": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "status",
+              "confounders"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "excludedIdentities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "playerId": {
+                "type": "string"
+              },
+              "identity": {
+                "type": "string",
+                "const": "match_local"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "playerId",
+              "identity",
+              "reason"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "groundService": {
+          "type": "object",
+          "properties": {
+            "metric": {
+              "type": "string",
+              "const": "ground_service_receptions"
+            },
+            "value": {
+              "type": "null"
+            },
+            "nullReason": {
+              "type": "string",
+              "const": "not_recorded"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "metric",
+            "value",
+            "nullReason",
+            "note"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "saveId",
+        "metricDictionaryVersion",
+        "source",
+        "coverage",
+        "statements",
+        "warnings",
+        "metrics",
+        "query",
+        "matches",
+        "players",
+        "comparisons",
+        "excludedIdentities",
+        "groundService"
+      ],
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

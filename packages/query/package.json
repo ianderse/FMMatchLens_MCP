@@ -1,0 +1,1 @@
+{ "name": "@fmmi/query", "version": "0.1.0", "private": true, "type": "module", "exports": { ".": "./src/index.ts" }, "dependencies": { "@fmmi/model": "0.1.0", "@fmmi/analytics": "0.1.0", "@fmmi/store": "0.1.0" } }

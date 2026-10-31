@@ -1,0 +1,630 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "const": "network"
+        },
+        "matchId": {
+          "type": "string"
+        },
+        "saveId": {
+          "type": "string"
+        },
+        "recordingRevisionId": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "fmlens_archive"
+            },
+            "format": {
+              "type": "string"
+            },
+            "startTick": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "endTick": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "kind",
+            "format",
+            "startTick",
+            "endTick"
+          ],
+          "additionalProperties": false
+        },
+        "metricDictionaryVersion": {
+          "type": "string"
+        },
+        "window": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tick": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "sequence": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "period",
+                "tick",
+                "sequence"
+              ],
+              "additionalProperties": false
+            },
+            "to": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tick": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "sequence": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "period",
+                "tick",
+                "sequence"
+              ],
+              "additionalProperties": false
+            },
+            "bounds": {
+              "type": "string",
+              "const": "[from,to)"
+            },
+            "display": {
+              "type": "object",
+              "properties": {
+                "fromMinute": {
+                  "type": "number"
+                },
+                "toMinute": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "fromMinute",
+                "toMinute"
+              ],
+              "additionalProperties": false
+            },
+            "resolution": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "object",
+                  "properties": {
+                    "exact": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "exact"
+                  ],
+                  "additionalProperties": {}
+                },
+                "to": {
+                  "type": "object",
+                  "properties": {
+                    "exact": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "exact"
+                  ],
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "from",
+            "to",
+            "bounds",
+            "display",
+            "resolution"
+          ],
+          "additionalProperties": {}
+        },
+        "coverage": {
+          "type": "string",
+          "enum": [
+            "complete_for_window",
+            "partial_for_window",
+            "unavailable"
+          ]
+        },
+        "capture": {
+          "type": "object",
+          "properties": {
+            "integrity": {
+              "type": "string",
+              "enum": [
+                "valid",
+                "recovered_prefix",
+                "invalid"
+              ]
+            },
+            "coverage": {
+              "type": "string",
+              "enum": [
+                "full_match",
+                "partial",
+                "unknown"
+              ]
+            },
+            "completion": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "completed_manual",
+                "in_progress",
+                "unknown"
+              ]
+            },
+            "partial": {
+              "type": "boolean"
+            },
+            "statement": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "endBoundary": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tick": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "sequence": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "period",
+                "tick",
+                "sequence"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "integrity",
+            "coverage",
+            "completion",
+            "partial",
+            "statement",
+            "endBoundary"
+          ],
+          "additionalProperties": {}
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "observed": {
+              "type": "object",
+              "properties": {
+                "home": {
+                  "type": "number"
+                },
+                "away": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "home",
+                "away"
+              ],
+              "additionalProperties": {}
+            },
+            "label": {
+              "type": "string",
+              "enum": [
+                "observed_not_final",
+                "final_manual",
+                "final"
+              ]
+            }
+          },
+          "required": [
+            "observed",
+            "label"
+          ],
+          "additionalProperties": {}
+        },
+        "teams": {
+          "type": "object",
+          "properties": {
+            "home": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            },
+            "away": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "home",
+            "away"
+          ],
+          "additionalProperties": false
+        },
+        "metrics": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "unit": {
+                "type": "string"
+              },
+              "unitVerified": {
+                "type": "boolean"
+              },
+              "derivation": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "version",
+              "unit",
+              "unitVerified",
+              "derivation",
+              "confidence"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "network": {
+          "type": "object",
+          "properties": {
+            "team": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "counter_scope",
+                    "open_play",
+                    "all_passes"
+                  ]
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "scope",
+                "warnings"
+              ],
+              "additionalProperties": {}
+            },
+            "recipientGate": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "fail"
+                  ]
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "scope": {
+                  "type": "string"
+                },
+                "semanticsBasis": {
+                  "type": "string",
+                  "const": "internal_corroboration"
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "status",
+                "side",
+                "scope",
+                "semanticsBasis",
+                "reasons"
+              ],
+              "additionalProperties": {}
+            },
+            "totals": {
+              "type": "object",
+              "properties": {
+                "edgesTotal": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "edgesTotal",
+                "truncated"
+              ],
+              "additionalProperties": {}
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string"
+                  },
+                  "completions": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "forwardDistanceM": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "sum": {
+                            "type": "number"
+                          },
+                          "measured": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "sum",
+                          "measured"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "from",
+                  "to",
+                  "completions",
+                  "forwardDistanceM"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "playerId": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "playerId",
+                  "location"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          },
+          "required": [
+            "team",
+            "scope",
+            "recipientGate",
+            "totals",
+            "edges",
+            "nodes"
+          ],
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "query",
+        "matchId",
+        "saveId",
+        "recordingRevisionId",
+        "source",
+        "metricDictionaryVersion",
+        "window",
+        "coverage",
+        "capture",
+        "result",
+        "teams",
+        "metrics",
+        "warnings",
+        "network"
+      ],
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

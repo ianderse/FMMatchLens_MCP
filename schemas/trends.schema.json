@@ -1,0 +1,1298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "saveId": {
+          "type": "string"
+        },
+        "metricDictionaryVersion": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "aggregateKey": {
+              "type": "string"
+            },
+            "aggregates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "servedFromCatalog": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "servedFromMemory": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "builtThisCall": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "persistedThisCall": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "aggregateKey",
+            "aggregates",
+            "servedFromCatalog",
+            "servedFromMemory",
+            "builtThisCall",
+            "persistedThisCall"
+          ],
+          "additionalProperties": false
+        },
+        "coverage": {
+          "type": "string",
+          "enum": [
+            "complete_for_window",
+            "partial_for_window",
+            "unavailable"
+          ]
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "query": {
+          "type": "string",
+          "const": "season_trends"
+        },
+        "team": {
+          "type": "object",
+          "properties": {
+            "teamId": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "teamId",
+            "name",
+            "aliases"
+          ],
+          "additionalProperties": {}
+        },
+        "eligibleMatches": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "matches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "matchId": {
+                "type": "string"
+              },
+              "recordingRevisionId": {
+                "type": "string"
+              },
+              "date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "class": {
+                "type": "string",
+                "const": "early_ending"
+              },
+              "capturedMinutes": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "matchId",
+              "recordingRevisionId",
+              "date",
+              "capturedMinutes"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "matchId": {
+                "type": "string"
+              },
+              "date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "matchId",
+              "date",
+              "reasons"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "lastN": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "matchIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "rates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "metric": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "nullReason": {
+                      "type": "string",
+                      "enum": [
+                        "not_recorded",
+                        "unsupported_version",
+                        "partial",
+                        "unverified_semantics",
+                        "missing_baseline",
+                        "unresolved_boundary",
+                        "zero_denominator",
+                        "not_applicable"
+                      ]
+                    },
+                    "numerator": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "denominator": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "contributing": {
+                      "type": "object",
+                      "properties": {
+                        "matches": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "minutes": {
+                          "type": "number"
+                        },
+                        "matchIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "matches",
+                        "minutes"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "excluded": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "matchId": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "matchId",
+                          "reason"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "metric",
+                    "value",
+                    "numerator",
+                    "denominator",
+                    "contributing"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "wing": {
+                "type": "object",
+                "properties": {
+                  "metric": {
+                    "type": "string",
+                    "const": "chance_creation_by_wing_trend"
+                  },
+                  "contributing": {
+                    "type": "object",
+                    "properties": {
+                      "matches": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "minutes": {
+                        "type": "number"
+                      },
+                      "matchIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "matches",
+                      "minutes"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "excluded": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "matchId": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "matchId",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "for": {
+                    "type": "object",
+                    "properties": {
+                      "byLane": {
+                        "type": "object",
+                        "properties": {
+                          "left": {
+                            "type": "object",
+                            "properties": {
+                              "shots": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "xg": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crosses": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crossesCompleted": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "finalThirdEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "dangerAreaEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "required": [
+                              "shots",
+                              "xg",
+                              "crosses",
+                              "crossesCompleted",
+                              "finalThirdEntries",
+                              "dangerAreaEntries"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "centre": {
+                            "type": "object",
+                            "properties": {
+                              "shots": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "xg": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crosses": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crossesCompleted": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "finalThirdEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "dangerAreaEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "required": [
+                              "shots",
+                              "xg",
+                              "crosses",
+                              "crossesCompleted",
+                              "finalThirdEntries",
+                              "dangerAreaEntries"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "right": {
+                            "type": "object",
+                            "properties": {
+                              "shots": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "xg": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crosses": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crossesCompleted": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "finalThirdEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "dangerAreaEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "required": [
+                              "shots",
+                              "xg",
+                              "crosses",
+                              "crossesCompleted",
+                              "finalThirdEntries",
+                              "dangerAreaEntries"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "left",
+                          "centre",
+                          "right"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "withoutLocation": {
+                        "type": "object",
+                        "properties": {
+                          "shots": {
+                            "type": "number"
+                          },
+                          "crosses": {
+                            "type": "number"
+                          },
+                          "crossesCompleted": {
+                            "type": "number"
+                          },
+                          "finalThirdEntries": {
+                            "type": "number"
+                          },
+                          "dangerAreaEntries": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "shots",
+                          "crosses",
+                          "crossesCompleted",
+                          "finalThirdEntries",
+                          "dangerAreaEntries"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "xgUnattributedShots": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "byLane",
+                      "withoutLocation",
+                      "xgUnattributedShots"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "against": {
+                    "type": "object",
+                    "properties": {
+                      "byLane": {
+                        "type": "object",
+                        "properties": {
+                          "left": {
+                            "type": "object",
+                            "properties": {
+                              "shots": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "xg": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crosses": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crossesCompleted": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "finalThirdEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "dangerAreaEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "required": [
+                              "shots",
+                              "xg",
+                              "crosses",
+                              "crossesCompleted",
+                              "finalThirdEntries",
+                              "dangerAreaEntries"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "centre": {
+                            "type": "object",
+                            "properties": {
+                              "shots": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "xg": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crosses": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crossesCompleted": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "finalThirdEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "dangerAreaEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "required": [
+                              "shots",
+                              "xg",
+                              "crosses",
+                              "crossesCompleted",
+                              "finalThirdEntries",
+                              "dangerAreaEntries"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "right": {
+                            "type": "object",
+                            "properties": {
+                              "shots": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "xg": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crosses": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "crossesCompleted": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "finalThirdEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "dangerAreaEntries": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                ],
+                                "items": false,
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "required": [
+                              "shots",
+                              "xg",
+                              "crosses",
+                              "crossesCompleted",
+                              "finalThirdEntries",
+                              "dangerAreaEntries"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "left",
+                          "centre",
+                          "right"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "withoutLocation": {
+                        "type": "object",
+                        "properties": {
+                          "shots": {
+                            "type": "number"
+                          },
+                          "crosses": {
+                            "type": "number"
+                          },
+                          "crossesCompleted": {
+                            "type": "number"
+                          },
+                          "finalThirdEntries": {
+                            "type": "number"
+                          },
+                          "dangerAreaEntries": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "shots",
+                          "crosses",
+                          "crossesCompleted",
+                          "finalThirdEntries",
+                          "dangerAreaEntries"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "xgUnattributedShots": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "byLane",
+                      "withoutLocation",
+                      "xgUnattributedShots"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "metric",
+                  "contributing",
+                  "for",
+                  "against"
+                ],
+                "additionalProperties": false
+              },
+              "record": {
+                "type": "object",
+                "properties": {
+                  "matches": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "won": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "drawn": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "lost": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "matches",
+                  "won",
+                  "drawn",
+                  "lost"
+                ],
+                "additionalProperties": {}
+              },
+              "totals": {
+                "type": "object",
+                "properties": {
+                  "matches": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "minutes": {
+                    "type": "number"
+                  },
+                  "excludedFromTotals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "matchId": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "matchId",
+                        "reason"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "matches",
+                  "minutes",
+                  "excludedFromTotals"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "lastN",
+              "matchIds",
+              "rates",
+              "record",
+              "totals"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "unavailable": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "metric": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "metric",
+              "reason"
+            ],
+            "additionalProperties": {}
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "saveId",
+        "metricDictionaryVersion",
+        "source",
+        "coverage",
+        "statements",
+        "warnings",
+        "metrics",
+        "query",
+        "team",
+        "eligibleMatches",
+        "matches",
+        "excluded",
+        "windows",
+        "unavailable"
+      ],
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

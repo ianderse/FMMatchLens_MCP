@@ -1,0 +1,712 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "const": "compare"
+        },
+        "matchId": {
+          "type": "string"
+        },
+        "saveId": {
+          "type": "string"
+        },
+        "recordingRevisionId": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "fmlens_archive"
+            },
+            "format": {
+              "type": "string"
+            },
+            "startTick": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "endTick": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "kind",
+            "format",
+            "startTick",
+            "endTick"
+          ],
+          "additionalProperties": false
+        },
+        "metricDictionaryVersion": {
+          "type": "string"
+        },
+        "coverage": {
+          "type": "string",
+          "enum": [
+            "complete_for_window",
+            "partial_for_window",
+            "unavailable"
+          ]
+        },
+        "capture": {
+          "type": "object",
+          "properties": {
+            "integrity": {
+              "type": "string",
+              "enum": [
+                "valid",
+                "recovered_prefix",
+                "invalid"
+              ]
+            },
+            "coverage": {
+              "type": "string",
+              "enum": [
+                "full_match",
+                "partial",
+                "unknown"
+              ]
+            },
+            "completion": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "completed_manual",
+                "in_progress",
+                "unknown"
+              ]
+            },
+            "partial": {
+              "type": "boolean"
+            },
+            "statement": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "endBoundary": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tick": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "sequence": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "period",
+                "tick",
+                "sequence"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "integrity",
+            "coverage",
+            "completion",
+            "partial",
+            "statement",
+            "endBoundary"
+          ],
+          "additionalProperties": {}
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "observed": {
+              "type": "object",
+              "properties": {
+                "home": {
+                  "type": "number"
+                },
+                "away": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "home",
+                "away"
+              ],
+              "additionalProperties": {}
+            },
+            "label": {
+              "type": "string",
+              "enum": [
+                "observed_not_final",
+                "final_manual",
+                "final"
+              ]
+            }
+          },
+          "required": [
+            "observed",
+            "label"
+          ],
+          "additionalProperties": {}
+        },
+        "teams": {
+          "type": "object",
+          "properties": {
+            "home": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            },
+            "away": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "home",
+            "away"
+          ],
+          "additionalProperties": false
+        },
+        "metrics": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "unit": {
+                "type": "string"
+              },
+              "unitVerified": {
+                "type": "boolean"
+              },
+              "derivation": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "version",
+              "unit",
+              "unitVerified",
+              "derivation",
+              "confidence"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "windows": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "object",
+                  "properties": {
+                    "period": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "tick": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "sequence": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "period",
+                    "tick",
+                    "sequence"
+                  ],
+                  "additionalProperties": false
+                },
+                "to": {
+                  "type": "object",
+                  "properties": {
+                    "period": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "tick": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "sequence": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "period",
+                    "tick",
+                    "sequence"
+                  ],
+                  "additionalProperties": false
+                },
+                "bounds": {
+                  "type": "string",
+                  "const": "[from,to)"
+                },
+                "teamMinutes": {
+                  "type": "number"
+                },
+                "coverage": {
+                  "type": "string",
+                  "enum": [
+                    "complete_for_window",
+                    "partial_for_window",
+                    "unavailable"
+                  ]
+                },
+                "effective": {
+                  "type": "object",
+                  "properties": {
+                    "coverage": {
+                      "type": "string",
+                      "enum": [
+                        "complete_for_window",
+                        "partial_for_window",
+                        "unavailable"
+                      ]
+                    },
+                    "exact": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "coverage",
+                    "exact"
+                  ],
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "from",
+                "to",
+                "bounds",
+                "teamMinutes",
+                "coverage",
+                "effective"
+              ],
+              "additionalProperties": {}
+            },
+            "b": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "object",
+                  "properties": {
+                    "period": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "tick": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "sequence": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "period",
+                    "tick",
+                    "sequence"
+                  ],
+                  "additionalProperties": false
+                },
+                "to": {
+                  "type": "object",
+                  "properties": {
+                    "period": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "tick": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "sequence": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "period",
+                    "tick",
+                    "sequence"
+                  ],
+                  "additionalProperties": false
+                },
+                "bounds": {
+                  "type": "string",
+                  "const": "[from,to)"
+                },
+                "teamMinutes": {
+                  "type": "number"
+                },
+                "coverage": {
+                  "type": "string",
+                  "enum": [
+                    "complete_for_window",
+                    "partial_for_window",
+                    "unavailable"
+                  ]
+                },
+                "effective": {
+                  "type": "object",
+                  "properties": {
+                    "coverage": {
+                      "type": "string",
+                      "enum": [
+                        "complete_for_window",
+                        "partial_for_window",
+                        "unavailable"
+                      ]
+                    },
+                    "exact": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "coverage",
+                    "exact"
+                  ],
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "from",
+                "to",
+                "bounds",
+                "teamMinutes",
+                "coverage",
+                "effective"
+              ],
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "a",
+            "b"
+          ],
+          "additionalProperties": false
+        },
+        "comparison": {
+          "type": "object",
+          "properties": {
+            "team": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "home",
+                    "away"
+                  ]
+                },
+                "managed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "name",
+                "side",
+                "managed"
+              ],
+              "additionalProperties": false
+            },
+            "pairing": {
+              "type": "string",
+              "const": "b_minus_a"
+            },
+            "teamRates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "metric": {
+                    "type": "string"
+                  },
+                  "comparedAs": {
+                    "type": "string",
+                    "enum": [
+                      "per_90",
+                      "value"
+                    ]
+                  },
+                  "a": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "b": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "delta": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "metric",
+                  "comparedAs",
+                  "a",
+                  "b",
+                  "delta"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "players": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "player": {
+                    "type": "object",
+                    "properties": {
+                      "playerId": {
+                        "type": "string",
+                        "format": "starts_with",
+                        "pattern": "^p_.*"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "side": {
+                        "type": "string",
+                        "enum": [
+                          "home",
+                          "away"
+                        ]
+                      },
+                      "teamId": {
+                        "type": "string"
+                      },
+                      "identity": {
+                        "type": "string",
+                        "const": "match_local"
+                      }
+                    },
+                    "required": [
+                      "playerId",
+                      "name",
+                      "side",
+                      "teamId",
+                      "identity"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "qualified",
+                      "suppressed"
+                    ]
+                  },
+                  "reasons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "player",
+                  "status",
+                  "reasons"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "context": {
+              "type": "object",
+              "properties": {
+                "confounders": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "confounders"
+              ],
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "team",
+            "pairing",
+            "teamRates",
+            "players",
+            "context"
+          ],
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "query",
+        "matchId",
+        "saveId",
+        "recordingRevisionId",
+        "source",
+        "metricDictionaryVersion",
+        "coverage",
+        "capture",
+        "result",
+        "teams",
+        "metrics",
+        "warnings",
+        "windows",
+        "comparison"
+      ],
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "ok",
+    "schemaVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}
