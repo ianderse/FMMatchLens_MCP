@@ -270,7 +270,7 @@ export class HistoryQueries {
       substitutionFlips: show.substitutions.length,
       players: shown.map((p) => ({
         playerId: p.playerId, name: p.name, side: p.side,
-        changes: p.roleTimeline.slice(0, 8).map((t) => ({ capturedTick: t.capturedTick, position: t.position, inPossession: role(t.inPossession), outOfPossession: role(t.outOfPossession) })),
+        changes: p.roleTimeline.slice(0, 8).map((t) => ({ capturedTick: t.capturedTick, gameMinute: t.gameMinute, gameLabel: t.gameLabel, position: t.position, inPossession: role(t.inPossession), outOfPossession: role(t.outOfPossession) })),
       })),
       playersWithChanges: withChanges.length, truncated: withChanges.length > shown.length,
     }

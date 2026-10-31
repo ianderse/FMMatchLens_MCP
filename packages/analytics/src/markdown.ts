@@ -134,13 +134,22 @@ export function renderReport(r: ReportResult, o: { markdown: boolean }): string 
 
 const rowsText = (rows: readonly MetricRow[]) => rows.map((r) => `  ${r.metric.padEnd(40)} ${fmtRow(r)}${r.warnings?.length ? `   (${r.warnings.join('; ')})` : ''}`)
 
+const identityText = (p: { identity: string; persistentPlayerId: string | null }) => (p.persistentPlayerId ? `${p.identity} player ${p.persistentPlayerId} (save-scoped; usable with get_player_trends)` : 'match-local (no persistent identity in this save yet)')
+const minuteRange = (a: number | null, b: number | null) => `${a === null ? '?' : a} to ${b === null ? '?' : b} min`
+const roleText = (position: string | null, a: { role: string; duty: string | null } | null) => `${position ? `${position} ` : ''}${a ? `${a.role}${a.duty ? ` (${a.duty})` : ''}` : 'n/a'}`
+
 export function renderPlayer(r: PlayerResult, o: { markdown?: boolean } = {}): string {
   const esc: Esc = o.markdown ? mdEscape : plainEscape
   const p = r.player, L: string[] = []
   L.push(`Player ${esc(p.name)} (${p.playerId}) ${p.position ?? ''} side ${p.side}, team ${p.teamId}`)
+  L.push(`Identity: ${identityText(p)}`)
   L.push(`Match ${r.matchId}  revision ${r.recordingRevisionId}  window ${windowLine(r.window)}`)
   const pa = p.participation
-  L.push(`Participation: ${pa.status}${pa.enteredAs ? `, ${pa.enteredAs}` : ''}, ${pa.minutesInWindow.toFixed(2)} min in window (${pa.minutesInRecording.toFixed(2)} in recording); segments ${pa.segments.map((s) => `p${s.period} ${s.fromTick}-${s.toTick}`).join(', ') || 'none'}${pa.sameTickBatch ? '; same-tick substitution batch' : ''}`)
+  L.push(`Participation: ${pa.status}${pa.enteredAs ? `, ${pa.enteredAs}` : ''}, ${pa.minutesInWindow.toFixed(2)} min in window (${pa.minutesInRecording.toFixed(2)} in recording); segments ${pa.segments.map((s) => `p${s.period} ${s.fromTick}-${s.toTick} (${minuteRange(s.fromMinute, s.toMinute)})`).join(', ') || 'none'}${pa.sameTickBatch ? '; same-tick substitution batch' : ''}`)
+  if (p.roleTimeline.length > 0) {
+    L.push('Role timeline (captured = when the plugin noticed the assignment, not when the manager acted):')
+    for (const r of p.roleTimeline) L.push(`  ${r.gameLabel} (captured tick ${r.capturedTick}): ${roleText(r.position, r.inPossession)} in possession; ${roleText(null, r.outOfPossession)} out of possession`)
+  }
   L.push(`Native rating at last frame: ${p.nativeRating.value === null ? 'n/a' : p.nativeRating.value.toFixed(2)} (observed)`)
   L.push(...ratingLines(p.rating))
   L.push('Metrics:', ...rowsText(p.metrics))
@@ -173,6 +182,7 @@ export function renderService(r: ServiceResult, o: { markdown?: boolean } = {}):
   const s = r.service, L: string[] = []
   const g = s.recipientGate
   L.push(`Striker service: ${esc(s.subject.player.name)} (${s.subject.player.playerId}); scope ${s.scope.scope}`)
+  L.push(`Identity: ${identityText(s.subject.player)}`)
   L.push(`Match ${r.matchId}  revision ${r.recordingRevisionId}  window ${windowLine(r.window)}`)
   L.push(`Recipient gate (${g.side}): ${g.status.toUpperCase()}; receivers ${g.withVerifiedReceiver}/${g.eligibleCompletedPasses}; reconciliation ${g.reconciliation.status}${g.reasons.length ? `; ${g.reasons.join(', ')}` : ''}`)
   L.push(`Diagnosis: ${s.diagnosis.status}. ${s.diagnosis.note}`)

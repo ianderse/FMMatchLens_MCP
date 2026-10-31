@@ -1,7 +1,7 @@
-import { DomainError, TICKS_PER_MINUTE, compareBoundary, counterDelta, inWindow, resolveCounterAt, resolveWindow } from '@fmmi/model'
+import { DomainError, MATCH_LOCAL_IDENTITY, TICKS_PER_MINUTE, compareBoundary, counterDelta, gameClockAt, inWindow, resolveCounterAt, resolveWindow } from '@fmmi/model'
 import type {
   Boundary, BoundaryResolution, CounterDelta, DecodedRecording, MatchCompletion, NormalizedEvent, NormalizedRecording, NullReason,
-  Participant, PlaySegment, ResultView, SampledCounters, Side, Window,
+  Participant, PlayerIdentityInfo, PlaySegment, ResultView, SampledCounters, Side, Window,
 } from '@fmmi/model'
 import { COUNTER_KEYS, getDefinition } from './registry.ts'
 
@@ -19,6 +19,11 @@ export interface AnalysisInput {
     /** Upstream player id -> internal player id. */
     playerIds: ReadonlyMap<number, string>
   }
+  /**
+   * Identity of the roster's internal player ids that belong to a persistent or linked player of the save, supplied by the query layer
+   * (analytics never reads the catalog). Absent or missing ids are match-local.
+   */
+  playerIdentities?: ReadonlyMap<string, PlayerIdentityInfo>
   completion: MatchCompletion
   result: ResultView
   /** Warnings the caller wants carried on the envelope (identity conflicts, manual score differences). */
@@ -144,6 +149,15 @@ export function displayMinuteAt(ctx: Ctx, b: Boundary): number {
   const fi = ctx.sampled.frames
   const i = Math.min(fi.length - 1, fi.indexBefore(b) + 1)
   return Math.round((fi.displayTicks[Math.max(0, i)]! / TICKS_PER_MINUTE) * 100) / 100
+}
+
+/** Game clock (minute and readable label) of a boundary or captured tick, from the recorded frame display ticks (never tick / 240). */
+export function clockOf(ctx: Ctx, b: { tick: number; period?: number | null }) {
+  const c = gameClockAt(ctx.sampled.frames, b.tick, b.period ?? undefined)
+  return { minute: c.minute, label: c.label }
+}
+export function identityOf(ctx: Ctx, upstreamId: number): PlayerIdentityInfo {
+  return ctx.input.playerIdentities?.get(internalPlayerId(ctx, upstreamId)) ?? MATCH_LOCAL_IDENTITY
 }
 
 export function requireParticipant(ctx: Ctx, upstreamId: number): Participant {

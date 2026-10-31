@@ -623,7 +623,23 @@
                       },
                       "identity": {
                         "type": "string",
-                        "const": "match_local"
+                        "enum": [
+                          "match_local",
+                          "persistent",
+                          "linked"
+                        ]
+                      },
+                      "persistentPlayerId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "starts_with",
+                            "pattern": "^pe_.*"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "required": [
@@ -631,7 +647,8 @@
                       "name",
                       "side",
                       "teamId",
-                      "identity"
+                      "identity",
+                      "persistentPlayerId"
                     ],
                     "additionalProperties": {}
                   },

@@ -444,16 +444,18 @@ attributed from counter steps; shots whose xG could not be attributed are disclo
 
 ## 17. Live path (Slice 5): what is modelled, what is observed, what is unverified
 
-**The live path is unverified against a real match.** It will stay unverified until `fmmi live capture` has been run during a real match
-and `fmmi live check` has passed on that capture (`docs/setup-windows.md` section 9). Until then everything below is a model.
+**The live path has been seen working in ONE real match (2026-10-31, section 18). It is not otherwise verified.** The table below records what
+that match showed; anything not listed as seen is still a model.
 
 | Route | Evidence | Where the shape comes from |
 |---|---|---|
 | `GET /api/health` | observed (section 10) | field names recorded in section 10 |
 | `GET /api/archives` | observed (section 10) | item fields recorded in section 10; the wrapper keys other than `items` are not recorded |
 | `GET /api/match/status` | observed (section 10) | counters recorded in section 10; whether `matchId` is present is not known |
-| `GET /api/match/meta`, `/current`, `/frames`, `/formation/history`, `/momentum/events`, `/momentum/updates` | never seen | vendored `frontend/src/api/realtimeMatch.ts` (types and the query strings the dashboard uses) |
-| `WS /ws` envelopes `realtime_tick`, `formation_changed` | never seen | the same file (`socket.onmessage`) |
+| `GET /api/match/meta`, `/current`, `/frames`, `/formation/history` | answered in a real match 2026-10-31; the reader reached `fresh` (section 18) | vendored `frontend/src/api/realtimeMatch.ts`, corrected for null assignments |
+| `GET /api/match/momentum/events`, `/momentum/updates` | answered 2026-10-31; bodies not read | vendored file (not parsed) |
+| `WS /ws` envelope `realtime_tick` and `connection_status` | seen 2026-10-31 | the same file (`socket.onmessage`) |
+| `WS /ws` envelope `formation_changed` | NOT seen | the same file |
 
 `LocalApiServer.cs` and `WebSocketHub.cs` are not vendored and were not read. Unknown and therefore not relied on: whether frames served by
 `/api/match/frames` carry the same momentum event list as archive frames, how large a page is, what `status` values exist besides
@@ -470,3 +472,44 @@ frames, 60 % of the bytes, decoded as `recovered_prefix`) followed by the whole 
 earlier frame digest, the source match id, the start time and the metadata revisions agree (`tests/store/continuation.test.ts`). That
 is the only real-data evidence that a longer recording keeps the earlier frames identical; whether the plugin's own file does so while
 it is still being written is not observed (the recordings were copied after the game had closed).
+
+## 18. Live path in a real match (2026-10-31): what was seen, and the `held` state
+
+Seen once, during one real match, on 2026-10-31 (one session; nothing here is a guarantee for other match states):
+- All nine HTTP routes answered. The WebSocket delivered `connection_status` and `realtime_tick` envelopes. `formation_changed` was not seen.
+- `/api/match/meta` failed the first schema because the 14 of 36 players who were substitutes carry `inPossession: null` and `outOfPossession: null`
+  (they hold no tactical assignment until they come on). The reader reported `metadata_invalid`. The schemas (`MetadataSchema`, `FormationEntry`)
+  now accept null; the reader then reached `fresh` on the real match. How a substitute's assignment appears when he comes on mid-match was not
+  observed; the fake plugin models it as a formation entry that replaces the null.
+- `fmmi live check` had reported `meta` ok on a capture whose full response failed, because it validated a sanitised skeleton (arrays cut to two
+  elements). The verdict is now taken on the raw response at capture time (section 17 and `docs/setup-windows.md` section 9).
+- **Half-time gives no break signal.** At the real half-time `/api/health` said status `live`, `inMatch: true`, tick 11093; `/api/match/status` said status
+  `live`, period 1, `lastTick` 11093; `/api/match/current` held tick 11093, display tick 11092, period 1, with `capturedUnixMilliseconds` aging while the
+  sequence did not change; the socket stayed open. Before the fix the reader called this `stale` (`latest_frame_too_old`) after 10 s and every analysis
+  tool refused, which made a halftime briefing impossible. The state `held` now covers it: plugin reachable, `inMatch` true, same match, the reader's
+  accepted tick equals the plugin's `lastTick` (lag 0), and the newest frame older than the freshness limit. It does not rely on the socket. It says
+  how long no frame arrived and that the game is not advancing for a reason the source does not give (pause, break or finished); `likelyBreak` is a
+  labelled guess from the game clock. The specification lists fresh / stale / not-in-match only: `held` is a deviation, recorded here.
+- A call after a gap returned `stale` with `catchingUp: true`, 4,400 ticks behind; a live call now waits up to about 8 s for catch-up.
+  Catch-up from zero was measured on the fake plugin with a full-match frame count in virtual time (the 4 requests/s governor is the limit):
+  23,046 frames took 37 requests and 9 s, in one call. A real match of about 16,400 frames needs roughly 21 history pages plus about 6 other
+  requests, about 7 s. The first call after starting the server mid-match can therefore reach the 8 s budget and answer `stale` with
+  `catchingUp: true`; the next call finishes. Later calls read only the new frames.
+
+## 19. Role timelines: verified on one match by user recollection
+
+On 2026-10-31 the user confirmed from their own game that the Hemel role timeline is correct: George Alexander's out-of-possession role change at about
+41', Deep-Lying Forward at half-time, Poacher at about 57'. The decoded captured ticks 9776, 11374 and 14136 read as about 40.7', just after half-time
+(45.04') and about 56.6' on the game clock. So role timelines are verified on one match, by the user's recollection; the manager instruction settings
+are still not recorded, and a captured tick is when the plugin noticed the assignment, not when the manager acted.
+
+Game minutes. A minute is never tick / 240: in period 2 the display ticks restart at 45:00 and the tick to display-tick offset is 564 in the Hemel
+recording and 323 in the Torquay one (period 1: 1). Results state the minute read from the frame display ticks beside the canonical
+`<period>:<tick>` fields: `onAtMinute` / `offAtMinute` in rosters, `firstOnGame`, `lastOffGame` and segment `fromMinute` / `toMinute` for a player,
+`gameMinute` and `gameLabel` in role timelines (the starting entry at tick -1 reads "start of match"), `atMinute` / `atLabel` for substitutions. A label is
+the whole elapsed minute with stoppage as `45+n'` / `90+n'`. The catalog views that have no frames (`fmmi show`, observed role changes in tactical notes)
+use the first and last display tick of each period and report the minute as unknown when the offset differs between them.
+
+Identity. Match-scoped results (`get_match_summary` roster, `get_player_match`, `get_striker_service` subject and comparator, report and compare players)
+state `identity` (`persistent`, `linked` or `match_local`) and `persistentPlayerId` (`pe_...` or null). It is read from the catalog on every call and is
+not part of any cached value.

@@ -396,7 +396,23 @@
               },
               "identity": {
                 "type": "string",
-                "const": "match_local"
+                "enum": [
+                  "match_local",
+                  "persistent",
+                  "linked"
+                ]
+              },
+              "persistentPlayerId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "starts_with",
+                    "pattern": "^pe_.*"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "upstream": {
                 "type": "object",
@@ -490,6 +506,7 @@
             "required": [
               "playerId",
               "identity",
+              "persistentPlayerId",
               "upstream",
               "side",
               "name",

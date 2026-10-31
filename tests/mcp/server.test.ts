@@ -325,7 +325,12 @@ describe('Slice 3 MCP server (synthetic recording, real SDK v2 client)', () => {
     const fresh = await importMore(seed.home, seed.saveId, { ...sc.synth, upstreamMatchId: 'match-synth-9', homeName: 'Late Import' }, 'late.fmlens')
     expect(fresh.status).toBe('ingested')
 
-    for (const [name, args] of calls) expect((await c.call(name, args as Record<string, unknown>)).text, name).toBe(before.get(name))
+    // The evidence is identical. The one thing allowed to move is the player's identity: the late import made players persistent in the save
+    // (identity is read from the catalog on every call, never frozen with the pinned revision).
+    const sameEvidence = (t: string) => t.replace(/"identity":"[a-z_]+"/g, '"identity":"-"').replace(/"persistentPlayerId":(?:null|"pe_[0-9a-f]+")/g, '"persistentPlayerId":"-"')
+    for (const [name, args] of calls) expect(sameEvidence((await c.call(name, args as Record<string, unknown>)).text), name).toBe(sameEvidence(before.get(name)!))
+    const shownNow = (await c.call('get_match_summary', { matchId: seed.matchId, recordingRevisionId: seed.revisionId })).data.summary.roster.players as Array<{ identity: string; persistentPlayerId: string | null }>
+    expect(shownNow.some((p) => p.identity === 'persistent' && /^pe_/.test(p.persistentPlayerId ?? ''))).toBe(true)
     // Unpinned follow-ups still resolve to the selected, nonconflicting revision.
     expect((await c.call('get_match_summary', { matchId: seed.matchId })).data.recordingRevisionId).toBe(seed.revisionId)
     // The new import is visible to discovery and the conflict is reported, not hidden.

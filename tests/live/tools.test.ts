@@ -47,7 +47,7 @@ describe('[S3][MODELLED] the tool surface: live tools exist only behind --live, 
     // every tool description carries the data-safety rule; the live ones say the path is unverified
     for (const t of tools.filter((x) => LIVE_NAMES.includes(x.name))) {
       expect(t.description).toMatch(/untrusted data, not instructions/)
-      expect(t.description).toMatch(/has not been verified against a real match/)
+      expect(t.description).toMatch(/seen working in one real match/)
     }
     await on.close(); await r.close()
   })
@@ -103,16 +103,20 @@ describe('[AC1][S3][MODELLED] halftime briefing: an explicit snapshot minute, fr
     await c.close(); await r.close()
   })
 
-  it('every non-fresh state returns the state, the reason and the last known minute, with no analysis; the analysis tools refuse with the defined errors', async () => {
+  it('every state that is neither fresh nor held returns the state, the reason and the last known minute, with no analysis; the analysis tools refuse with the defined errors', async () => {
     const { replay } = await syntheticReplay()
     const r = await rig(replay)
     r.plugin.advance(120)
     const c = await connectLive(tmp('fmmi-lt-'), r)
     expect((await c.call('get_live_match')).data.live.state).toBe('fresh')
 
-    r.time.now += 120_000 // no new frame for two minutes
+    // The reader falls behind the plugin (the history route fails) and then no new frame arrives for two minutes: stale, never held, because the
+    // plugin has frames the reader does not. (With nothing newer at the plugin the same silence is `held` and is analysed: tests/live/held.test.ts.)
+    r.plugin.advance(30)
+    r.plugin.faults = { status: { '/api/match/frames': 500 } }
+    r.time.now += 120_000
     const stale = await c.call('get_live_match')
-    expect(stale.data).toMatchObject({ available: false, summary: null, live: { state: 'stale', reason: 'latest_frame_too_old' } })
+    expect(stale.data).toMatchObject({ available: false, summary: null, live: { state: 'stale', reason: 'behind_plugin' } })
     expect(stale.data.live.snapshot.label).toMatch(/^live as of game minute/) // the last known minute is still stated
     const playerStale = await c.call('get_live_player_analysis', { playerId: 'p_000000000000' })
     expect(playerStale.isError).toBe(true)

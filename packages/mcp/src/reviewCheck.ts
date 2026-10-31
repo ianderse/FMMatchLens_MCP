@@ -26,11 +26,11 @@ export interface ReviewCheckReport {
 
 // ------------------------------------------------------------------ evidence
 
-interface Evidence { text: string; ids: Set<string>; metrics: Set<string>; boundaries: Set<string>; minutePairs: Array<[number, number]> }
+interface Evidence { text: string; ids: Set<string>; metrics: Set<string>; boundaries: Set<string>; minutePairs: Array<[number, number]>; minutes: number[] }
 
 /** Accepts one record or a list; each may be a raw payload, `{tool, arguments, result}`, or an MCP CallToolResult. */
 export function collectEvidence(results: unknown): Evidence {
-  const ev: Evidence = { text: '', ids: new Set(), metrics: new Set(), boundaries: new Set(), minutePairs: [] }
+  const ev: Evidence = { text: '', ids: new Set(), metrics: new Set(), boundaries: new Set(), minutePairs: [], minutes: [] }
   const strings: string[] = []
   const visit = (v: unknown, key?: string): void => {
     if (typeof v === 'string') {
@@ -45,6 +45,8 @@ export function collectEvidence(results: unknown): Evidence {
     if (typeof o.period === 'number' && typeof o.tick === 'number') ev.boundaries.add(`${o.period}:${o.tick}`)
     const d = o.display as Record<string, unknown> | undefined
     if (d && typeof d.fromMinute === 'number' && typeof d.toMinute === 'number') ev.minutePairs.push([d.fromMinute, d.toMinute])
+    // Readable game minutes the results carry beside the canonical boundaries (onAtMinute, gameMinute, atMinute, fromMinute, displayMinute...).
+    for (const [k, x] of Object.entries(o)) if (typeof x === 'number' && /(?:[a-z]Minute|^minute)$/.test(k)) ev.minutes.push(x)
     if (key === 'metrics' && o && typeof o === 'object') for (const k of Object.keys(o)) ev.metrics.add(k)
     for (const [k, x] of Object.entries(o)) { strings.push(k); visit(x, k) }
   }
@@ -176,7 +178,10 @@ export function checkReview(response: string, results: unknown): ReviewCheckRepo
   const bounds = citedBoundaries(response)
   const missingBounds = bounds.filter((b) => !ev.boundaries.has(b))
   const pairs = citedMinutePairs(response)
-  const missingPairs = pairs.filter(([a, b]) => !ev.minutePairs.some(([x, y]) => Math.abs(x - a) <= MINUTE_TOLERANCE && Math.abs(y - b) <= MINUTE_TOLERANCE))
+  // A cited span is real when it is a window the results report, or when both of its ends are game minutes the results report
+  // (for example from a player's onAtMinute to his offAtMinute, or between two role changes).
+  const near = (n: number) => ev.minutes.some((m) => Math.abs(m - n) <= MINUTE_TOLERANCE)
+  const missingPairs = pairs.filter(([a, b]) => !ev.minutePairs.some(([x, y]) => Math.abs(x - a) <= MINUTE_TOLERANCE && Math.abs(y - b) <= MINUTE_TOLERANCE) && !(near(a) && near(b)))
   const missingWindows = [...missingBounds, ...missingPairs.map(([a, b]) => `${a}-${b} min`)]
   if (missingWindows.length) failures.push(`windows_not_in_tool_results: ${missingWindows.join(', ')}`)
   if (!bounds.length && !pairs.length) warnings.push('no_window_cited: the response cites no time window')

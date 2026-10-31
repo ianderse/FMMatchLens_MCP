@@ -6,9 +6,12 @@ import type { RealtimeFrame, RealtimeMatchMetadata } from '@fmmi/fmlens-adapter'
  * reported as `schema_mismatch` and the reader degrades (never crashes, never guesses). The schemas are `looseObject`s that require only
  * what this project reads, so an additive plugin change does not break the reader while a removed or retyped field does.
  *
- * Evidence: `health`, `archives` and `status` were observed from a running plugin (docs/data-coverage.md section 10). Everything else
- * (meta, current, frames, formation history, momentum, the WebSocket envelopes) is MODELLED from the vendored v0.7.0 source and has never
- * been seen from a real match. `fmmi live capture` and `fmmi live check` exist to close that gap.
+ * Evidence: `health`, `archives` and `status` were observed from a running plugin (docs/data-coverage.md section 10). On 2026-10-31, during
+ * one real match, all nine HTTP routes answered, and the reader reached `fresh` once `inPossession` and `outOfPossession` were made
+ * nullable (substitutes carry null in `/api/match/meta`); so meta, current, frames and formation history were accepted by these schemas
+ * for that one match. The momentum routes answered but their bodies are not parsed (the schema accepts any object or array). Over the
+ * WebSocket, `connection_status` and `realtime_tick` envelopes arrived; `formation_changed` was not seen, so its payload schema is still
+ * only MODELLED from the vendored v0.7.0 source. `fmmi live capture` and `fmmi live check` validate each full raw response, not a sample.
  */
 const int = z.number().int()
 const num = z.number().finite()
@@ -28,7 +31,7 @@ export const HealthSchema = z.looseObject({
 export type Health = z.infer<typeof HealthSchema>
 
 export const MatchStatusSchema = z.looseObject({
-  status: z.string(), period: int.optional(), matchId: z.string().optional(),
+  status: z.string(), period: int.optional(), matchId: z.string().optional(), lastTick: int.optional(),
   missingTickCount: int.optional(), duplicateTickCount: int.optional(), outOfOrderTickCount: int.optional(),
 })
 export type MatchStatus = z.infer<typeof MatchStatusSchema>
@@ -65,7 +68,8 @@ export const MetadataSchema = z.looseObject({
   away: z.looseObject({ name: z.string(), uid: int.optional(), clubUid: int.optional(), manager: z.looseObject({ isHumanControlled: z.boolean() }).optional() }),
   players: z.array(z.looseObject({
     slot: int, playerId: int, uid: int.optional(), team: side, displayName: z.string(), position: z.string().optional(),
-    shirtNumber: int.optional(), inPossession: Assignment.optional(), outOfPossession: Assignment.optional(),
+    // Null for substitutes in a real match: they hold no tactical assignment until they come on.
+    shirtNumber: int.optional(), inPossession: Assignment.nullish(), outOfPossession: Assignment.nullish(),
   })).max(255),
 })
 
@@ -81,7 +85,7 @@ const FormationEntry = z.looseObject({
   index: int.min(0), tick: int, displayTick: int.optional(),
   players: z.array(z.looseObject({
     slot: int, playerId: int, team: side, isSubstitute: z.boolean().optional(), isOnPitch: z.boolean().optional(),
-    inPossession: Assignment.optional(), outOfPossession: Assignment.optional(),
+    inPossession: Assignment.nullish(), outOfPossession: Assignment.nullish(),
   })),
 })
 export const FormationSliceSchema = z.looseObject({

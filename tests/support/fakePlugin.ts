@@ -25,6 +25,8 @@ export interface Replay {
   /** Metadata revisions after the first, turned into formation entries. */
   formation: Array<{ index: number; tick: number; displayTick: number; players: unknown[] }>
   source: 'real_recording' | 'synthetic_archive'
+  /** First tick at which each player was on the pitch. A player not yet on it (a substitute) is served with NULL assignments, as the real plugin does (2026-10-31). */
+  firstOnTick: Map<number, number>
 }
 
 export async function loadReplay(file: string, source: Replay['source']): Promise<Replay> {
@@ -32,11 +34,22 @@ export async function loadReplay(file: string, source: Replay['source']): Promis
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
   const parsed = await parseArchiveFile(ab, 'replay.fmlens', {})
   const timeline = parsed.metadataTimeline
+  const firstOnTick = new Map<number, number>()
+  for (const f of parsed.frames) for (const p of f.players) if (p.isOnPitch && !firstOnTick.has(p.playerId)) firstOnTick.set(p.playerId, f.tick)
   const formation = timeline.slice(1).map((m, i) => ({
     index: i, tick: m.capturedTick, displayTick: m.capturedTick,
-    players: m.players.map((p) => ({ slot: p.slot, playerId: p.playerId, team: p.team, isSubstitute: false, isOnPitch: true, inPossession: p.inPossession, outOfPossession: p.outOfPossession })),
+    players: m.players.map((p) => ({
+      slot: p.slot, playerId: p.playerId, team: p.team, isSubstitute: false, isOnPitch: true,
+      ...assignmentsAt(firstOnTick, m.capturedTick, p),
+    })),
   }))
-  return { matchId: parsed.archive.matchId, frames: parsed.frames, metadata: parsed.metadata ?? timeline[0]!, revisions: timeline, formation, source }
+  return { matchId: parsed.archive.matchId, frames: parsed.frames, metadata: parsed.metadata ?? timeline[0]!, revisions: timeline, formation, source, firstOnTick }
+}
+
+/** The real plugin sends null in and out of possession assignments for a player who has not been on the pitch yet. */
+function assignmentsAt(firstOn: ReadonlyMap<number, number>, tick: number, p: { playerId: number; inPossession?: unknown; outOfPossession?: unknown }) {
+  const on = (firstOn.get(p.playerId) ?? Infinity) <= tick
+  return { inPossession: on ? p.inPossession : null, outOfPossession: on ? p.outOfPossession : null }
 }
 
 /** Wire form of a frame: the archive-only rating payload (BigInt, Uint8Array) is not part of the live JSON. */
@@ -166,7 +179,7 @@ export class FakePlugin {
     } else if (path === '/api/archives') {
       send(200, { page: 1, pageSize: 20, totalCount: 1, items: [{ matchId: r.matchId, ended: !this.inMatch, frameCount: this.revealed, firstTick: r.frames[0]?.tick ?? 0, lastTick: f?.tick ?? 0 }] })
     } else if (path === '/api/match/status') {
-      send(200, { status: this.inMatch ? 'recording' : 'ended', matchId: r.matchId, period: f?.period ?? 1, missingTickCount: 0, duplicateTickCount: 0, outOfOrderTickCount: 0 })
+      send(200, { status: this.inMatch ? 'recording' : 'ended', matchId: r.matchId, period: f?.period ?? 1, lastTick: f?.tick ?? 0, missingTickCount: 0, duplicateTickCount: 0, outOfOrderTickCount: 0 })
     } else if (path === '/api/match/meta') {
       send(200, this.faults.metaBody !== undefined ? this.faults.metaBody : this.inMatch || this.revealed > 0 ? this.metaNow() : null)
     } else if (path === '/api/match/current') {
@@ -203,7 +216,7 @@ export class FakePlugin {
     const byId = new Map(rev.players.map((p) => [p.playerId, p]))
     return {
       ...final, capturedTick: rev.capturedTick,
-      players: final.players.map((p) => { const r = byId.get(p.playerId); return { ...p, position: r?.position ?? p.position, inPossession: r?.inPossession, outOfPossession: r?.outOfPossession } }),
+      players: final.players.map((p) => { const r = byId.get(p.playerId); return { ...p, position: r?.position ?? p.position, ...assignmentsAt(this.replay.firstOnTick, this.latest()?.tick ?? -1, { playerId: p.playerId, inPossession: r?.inPossession, outOfPossession: r?.outOfPossession }) } }),
     }
   }
 }

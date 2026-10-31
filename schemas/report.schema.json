@@ -641,7 +641,23 @@
                   },
                   "identity": {
                     "type": "string",
-                    "const": "match_local"
+                    "enum": [
+                      "match_local",
+                      "persistent",
+                      "linked"
+                    ]
+                  },
+                  "persistentPlayerId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "starts_with",
+                        "pattern": "^pe_.*"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "minutesInWindow": {
                     "type": "number"
@@ -724,6 +740,7 @@
                   "side",
                   "teamId",
                   "identity",
+                  "persistentPlayerId",
                   "minutesInWindow",
                   "metrics"
                 ],

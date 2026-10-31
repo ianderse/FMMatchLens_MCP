@@ -69,7 +69,7 @@ export class MatchQueries {
 
   async load(matchId: string, o: CommonOptions): Promise<{ input: AnalysisInput; spec: WindowSpec }> {
     const l = await this.svc.loadForAnalysis(matchId, { revisionId: o.recordingRevisionId, cache: this.cache })
-    const input: AnalysisInput = { decoded: l.decoded, ids: l.ids, completion: l.completion, result: l.result, warnings: l.warnings }
+    const input: AnalysisInput = { decoded: l.decoded, ids: l.ids, playerIdentities: l.playerIdentities, completion: l.completion, result: l.result, warnings: l.warnings }
     return { input, spec: resolveSpec(input, o.window) }
   }
 

@@ -426,7 +426,23 @@
             },
             "identity": {
               "type": "string",
-              "const": "match_local"
+              "enum": [
+                "match_local",
+                "persistent",
+                "linked"
+              ]
+            },
+            "persistentPlayerId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "starts_with",
+                  "pattern": "^pe_.*"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "participation": {
               "type": "object",
@@ -881,6 +897,7 @@
             "side",
             "teamId",
             "identity",
+            "persistentPlayerId",
             "participation",
             "metrics",
             "rating",

@@ -159,4 +159,17 @@ describe('review checker (synthetic samples)', () => {
     expect(run('--response', good).status).toBe(2)
     expect(run('--response', join(dir, 'nope.md'), '--results', results).status).toBe(2)
   })
+
+  it('answers that cite readable game minutes satisfy the checker: a span between two reported minutes passes, an invented span still fails, prose minutes are not windows', async () => {
+    const e = await evidence()
+    // the roster in get_match_summary now carries onAtMinute / offAtMinute beside the canonical onAt / offAt
+    const withMinutes = [...e.records, { tool: 'get_player_match', arguments: {}, result: { structuredContent: { player: { participation: { lastOffGame: { minute: 74.33, label: "74'" } }, roleTimeline: [{ capturedTick: 9776, gameMinute: 40.73, gameLabel: "40'" }, { capturedTick: 14136, gameMinute: 56.55, gameLabel: "56'" }] } } } }]
+    const ok = checkReview(goodReview(e, { extra: 'Prose: the role changed at about 40.7 min and again at about 56.6 min; he was off at 74.3 min (the span 41-57 min and 57-74 min).' }), withMinutes)
+    expect(ok.failures).toEqual([])
+    expect(ok.ok).toBe(true)
+    const invented = checkReview(goodReview(e, { extra: 'Prose: between 12-33 min nothing happened.' }), withMinutes)
+    expect(invented.failures.join()).toMatch(/windows_not_in_tool_results: 12-33 min/)
+    expect(collectEvidence(withMinutes).minutes).toEqual(expect.arrayContaining([74.33, 40.73, 56.55]))
+  })
+
 })

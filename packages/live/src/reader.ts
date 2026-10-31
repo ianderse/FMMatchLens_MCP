@@ -1,9 +1,17 @@
 import { LocalPluginClient } from './client.ts'
 import type { FetchFailure } from './client.ts'
-import { ArchivesSchema, CurrentSchema, EnvelopeSchema, FormationSliceSchema, FramesSliceSchema, FrameSchema, HealthSchema, MetaSchema, asFrame, asMetadata } from './schemas.ts'
+import { ArchivesSchema, CurrentSchema, EnvelopeSchema, FormationSliceSchema, FramesSliceSchema, FrameSchema, HealthSchema, MatchStatusSchema, MetaSchema, asFrame, asMetadata } from './schemas.ts'
 import { MatchTrack } from './track.ts'
 
-export type LiveStateName = 'fresh' | 'stale' | 'not_connected' | 'not_in_match'
+/**
+ * `held` (a deviation from the spec's fresh / stale / not-in-match list, recorded in docs/data-coverage.md): the plugin is reachable, says a match
+ * is in progress, the reader holds every frame the plugin has (lag 0) and no new frame has arrived for longer than the freshness limit. The
+ * plugin sends no break signal, so a pause, half-time, a break and full time look identical; `held` is servable, labelled, and never claims which.
+ */
+export type LiveStateName = 'fresh' | 'held' | 'stale' | 'not_connected' | 'not_in_match'
+
+/** Freshness states in which an analysis of the snapshot is served. */
+export const isServable = (state: LiveStateName): boolean => state === 'fresh' || state === 'held'
 
 /** The minimal WebSocket surface the reader uses (the global `WebSocket` satisfies it; tests pass their own). */
 export interface SocketLike {
@@ -20,6 +28,8 @@ export interface LiveReaderOptions {
   now?: () => number
   /** A latest frame captured longer ago than this is `stale`. Game speed varies, so this is real time, never game time. */
   staleAfterMs?: number
+  /** A live tool call waits at most this long (real time, through the rate governor) for the reader to catch up with the plugin. */
+  catchUpBudgetMs?: number
   /** Minimum gap between two syncs: tool calls inside it are served from the cache. */
   minSyncIntervalMs?: number
   /** The socket is opened on demand and closed after this long without a live tool call. */
@@ -59,6 +69,19 @@ export interface LiveView {
     syncs: number; httpRequests: number
   }
   catchingUp: boolean
+  /** Present only in state `held`. */
+  held: HeldInfo | null
+}
+
+export interface HeldInfo {
+  /** How long no new frame has arrived (real time since the newest frame was captured). */
+  noNewFramesForMs: number
+  /** The plugin's own last tick, equal to the snapshot tick. */
+  pluginLastTick: number
+  gameAdvancing: false
+  statement: string
+  /** A guess from the game clock only, never a fact: the plugin sends no break signal. */
+  likelyBreak: { guess: 'half_time' | 'end_of_period_or_full_time' | null; isGuess: true; basis: string }
 }
 
 /**
@@ -74,6 +97,7 @@ export class LiveReader {
   private readonly client: LocalPluginClient
   private readonly now: () => number
   private readonly staleAfterMs: number
+  private readonly catchUpBudgetMs: number
   private readonly minSyncIntervalMs: number
   private readonly idleCloseMs: number
   private readonly wsMinParseIntervalMs: number
@@ -85,7 +109,7 @@ export class LiveReader {
   private pageSize: number
 
   private track: MatchTrack | null = null
-  private health: { status: string; version: string; game: string | null; gameVersion: string | null; inMatch: boolean } | null = null
+  private health: { status: string; version: string; game: string | null; gameVersion: string | null; inMatch: boolean; tick: number | null } | null = null
   private http: 'ok' | 'failed' | 'never' = 'never'
   private lastFailure: FetchFailure | null = null
   private everConnected = false
@@ -109,15 +133,18 @@ export class LiveReader {
   private lastParseAt = -Infinity
   private ws = { messages: 0, parsed: 0, coalesced: 0, bad: 0, stale: 0, otherMatch: 0 }
   private catchingUp = false
+  /** Set only by a sync that confirmed, with the plugin, that nothing newer exists. Cleared at the start of every sync. */
+  private heldConfirmedTick: number | null = null
 
   constructor(o: LiveReaderOptions) {
     this.client = o.client
     this.now = o.now ?? (() => Date.now())
     this.staleAfterMs = o.staleAfterMs ?? 10_000
+    this.catchUpBudgetMs = o.catchUpBudgetMs ?? 8000
     this.minSyncIntervalMs = o.minSyncIntervalMs ?? 1500
     this.idleCloseMs = o.idleCloseMs ?? 120_000
     this.wsMinParseIntervalMs = o.wsMinParseIntervalMs ?? 500
-    this.pageSize = o.pageSize ?? 400
+    this.pageSize = o.pageSize ?? 800
     this.maxPagesPerSync = o.maxPagesPerSync ?? 12
     this.reconnectCfg = o.reconnect ?? { minMs: 2000, maxMs: 30_000 }
     this.reconnectDelay = this.reconnectCfg.minMs
@@ -131,12 +158,28 @@ export class LiveReader {
   /** Called by every live tool call: marks the reader active (opens the socket if needed), then synchronises unless the cache is fresh enough. */
   async refresh(opts: { force?: boolean } = {}): Promise<LiveView> {
     this.touch()
+    const deadline = this.now() + this.catchUpBudgetMs
     if (this.syncing) await this.syncing
-    else if (opts.force || this.now() - this.lastSyncAt >= this.minSyncIntervalMs || !this.track) {
-      this.syncing = this.sync().finally(() => { this.syncing = null })
-      await this.syncing
+    else if (opts.force || this.now() - this.lastSyncAt >= this.minSyncIntervalMs || !this.track) await this.runSync()
+    // Bounded catch-up: keep reading history (each request still passes the rate governor) while it makes progress and the budget lasts.
+    // No loop outlives the call: when the budget is spent the caller gets `stale` with catchingUp true and can ask again.
+    while (this.needsMore() && this.now() < deadline) {
+      const before = this.track?.counters.framesAccepted ?? 0
+      await this.runSync()
+      if ((this.track?.counters.framesAccepted ?? 0) === before) break
     }
     return this.view()
+  }
+
+  private async runSync(): Promise<void> {
+    if (this.syncing) { await this.syncing; return }
+    this.syncing = this.sync().finally(() => { this.syncing = null })
+    await this.syncing
+  }
+
+  /** The last sync was cut short by its page limit: there are more historical frames to read. */
+  private needsMore(): boolean {
+    return this.catchingUp && this.http === 'ok' && !this.notInMatch && this.track !== null
   }
 
   /** Cached answer, no network. */
@@ -256,10 +299,13 @@ export class LiveReader {
   private async sync(retried = false): Promise<void> {
     this.syncs++
     this.lastSyncAt = this.now()
+    this.heldConfirmedTick = null
     const sockedRecent = this.socketState === 'open' && this.track?.latest !== undefined && this.track?.latest !== null && this.now() - this.track.latest.receivedMs < 2000
 
     // 1. Is the plugin there, and is a match running? (Skipped while the socket delivered a frame in the last 2 s.)
-    if (!sockedRecent || !this.health) {
+    // Frames that stopped arriving are the one case where the socket cannot vouch for the plugin: ask the plugin itself on every sync.
+    const framesOld = !!this.track?.latest && this.now() - this.track.latest.capturedMs > this.staleAfterMs
+    if (!sockedRecent || !this.health || framesOld) {
       const h = await this.client.getJson('/api/health', HealthSchema)
       if (!h.ok) {
         this.fail(h.kind)
@@ -268,7 +314,7 @@ export class LiveReader {
         return
       }
       this.http = 'ok'; this.lastFailure = null; this.everConnected = true; this.reason = null
-      this.health = { status: h.data.status, version: h.data.pluginVersion, game: h.data.game ?? null, gameVersion: h.data.gameVersion ?? null, inMatch: h.data.inMatch }
+      this.health = { status: h.data.status, version: h.data.pluginVersion, game: h.data.game ?? null, gameVersion: h.data.gameVersion ?? null, inMatch: h.data.inMatch, tick: h.data.tick ?? null }
     }
     if (!this.health!.inMatch) { this.notInMatch = true; this.reason = 'no_match_in_progress'; return }
     this.notInMatch = false
@@ -325,6 +371,16 @@ export class LiveReader {
       if (page === this.maxPagesPerSync - 1) this.catchingUp = true
     }
 
+    // 4b. Frames stopped arriving: ask the plugin whether it has anything newer. Held needs the plugin's own last tick to equal ours.
+    const newest = track.latest
+    if (!this.catchingUp && newest && this.now() - newest.capturedMs > this.staleAfterMs && this.metadata === 'valid') {
+      const st = await this.client.getJson('/api/match/status', MatchStatusSchema)
+      const sameMatch = !st.ok || st.data.matchId === undefined || st.data.matchId === track.matchId
+      const reported = st.ok && st.data.lastTick !== undefined ? st.data.lastTick : (this.health?.tick ?? undefined)
+      if (!st.ok) this.fail(st.kind)
+      if (sameMatch && reported !== undefined && reported === track.lastTick && this.health?.inMatch) this.heldConfirmedTick = track.lastTick
+    }
+
     // 5. Formation history (first sync, reconnect, or when the socket reported a change or a gap).
     if (this.needFormation) {
       let ok = true
@@ -365,8 +421,12 @@ export class LiveReader {
     // The plugin is reachable and says a match is running, but nothing usable has been read (bad metadata, a changed endpoint, no frame yet).
     else if (!t || !latest || !snap) { state = 'stale'; reason = reason ?? 'no_frame_yet' }
     else if (this.metadata !== 'valid') { state = 'stale'; reason = reason ?? 'metadata_invalid' }
-    else if (now - latest.capturedMs > this.staleAfterMs) { state = 'stale'; reason = 'latest_frame_too_old' }
-    else { state = 'fresh'; reason = null }
+    else if (this.catchingUp) { state = 'stale'; reason = 'catching_up' }
+    else if (now - latest.capturedMs > this.staleAfterMs) {
+      // Old frames. Held only when the last sync confirmed with the plugin that it has nothing newer than our snapshot (lag 0).
+      if (this.heldConfirmedTick !== null && this.heldConfirmedTick === t.lastTick) { state = 'held'; reason = 'no_new_frames_game_not_advancing' }
+      else { state = 'stale'; reason = latest.tick > t.lastTick ? 'behind_plugin' : 'latest_frame_too_old' }
+    } else { state = 'fresh'; reason = null }
     const c = t?.counters
     return {
       state, reason, upstreamMatchId: t?.matchId ?? null,
@@ -382,7 +442,24 @@ export class LiveReader {
         syncs: this.syncs, httpRequests: this.client.requestsSent,
       },
       catchingUp: this.catchingUp,
+      held: state === 'held' && latest && snap ? heldInfo(now - latest.capturedMs, snap) : null,
     }
   }
 }
 
+
+const HALF = 45 * 240, FULL = 90 * 240
+
+/** Labelling for `held`. Everything here is a statement about what the data shows, except `likelyBreak`, which is a guess from the game clock alone. */
+function heldInfo(ageMs: number, snap: { tick: number; period: number; displayMinute: number }): HeldInfo {
+  const display = snap.displayMinute * 240
+  let guess: HeldInfo['likelyBreak']['guess'] = null
+  let basis = 'the game clock is not at a usual break'
+  if (snap.period === 1 && display >= HALF) { guess = 'half_time'; basis = 'guess: period 1 and the game clock is at or past 45:00' }
+  else if (snap.period >= 2 && display >= FULL) { guess = 'end_of_period_or_full_time'; basis = 'guess: the game clock is at or past 90:00; the end of a period or full time is possible, the match is NOT marked complete' }
+  return {
+    noNewFramesForMs: Math.max(0, Math.round(ageMs)), pluginLastTick: snap.tick, gameAdvancing: false,
+    statement: `No new frames for ${Math.round(ageMs / 1000)} s while the plugin reports a match in progress and the same last tick as this snapshot: the game is not advancing (paused, a break, or finished); the source does not say which.`,
+    likelyBreak: { guess, isGuess: true, basis },
+  }
+}

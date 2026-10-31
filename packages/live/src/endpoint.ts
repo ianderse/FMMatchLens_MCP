@@ -19,19 +19,23 @@ export function httpBase(port: number = LIVE_PORT): string { return `http://${LI
 export function wsUrl(port: number = LIVE_PORT): string { return `ws://${LIVE_HOST}:${port}/ws` }
 
 /**
- * What the evidence for each route is. `observed` means a real plugin answered it and the response was recorded in
- * docs/data-coverage.md section 10. `modelled` means the shape comes from the vendored v0.7.0 source (frontend
- * realtimeMatch.ts) and has never been seen from a running plugin. The WebSocket has never been observed either.
+ * What the evidence for each route is. `observed` means a real plugin answered it and, for the routes the reader parses, the response
+ * was accepted by this project's schema: health, archives and status (docs/data-coverage.md section 10) and, on 2026-10-31 during a
+ * real match, meta, current, frames and formation history (the reader reached `fresh`; one real match, one session).
+ * `observed_route_only` means the route answered during that match but this project does not parse or validate its body (the momentum
+ * routes, whose schema accepts any object or array). `modelled` means the shape comes only from the vendored v0.7.0 source
+ * (frontend realtimeMatch.ts); no route is `modelled` any more, the value is kept for a route that has not been seen. The WebSocket is
+ * `basis: 'websocket'` in the check report: `connection_status` and `realtime_tick` were seen, `formation_changed` was not.
  */
-export interface EndpointSpec { id: string; path: string; basis: 'observed' | 'modelled' }
+export interface EndpointSpec { id: string; path: string; basis: 'observed' | 'observed_route_only' | 'modelled' }
 export const ENDPOINTS: readonly EndpointSpec[] = [
   { id: 'health', path: '/api/health', basis: 'observed' },
   { id: 'archives', path: '/api/archives?page=1&pageSize=5', basis: 'observed' },
   { id: 'status', path: '/api/match/status', basis: 'observed' },
-  { id: 'meta', path: '/api/match/meta', basis: 'modelled' },
-  { id: 'current', path: '/api/match/current', basis: 'modelled' },
-  { id: 'frames', path: '/api/match/frames?fromTick=0&stride=1&limit=3', basis: 'modelled' },
-  { id: 'formation_history', path: '/api/match/formation/history?fromIndex=0&limit=8', basis: 'modelled' },
-  { id: 'momentum_events', path: '/api/match/momentum/events', basis: 'modelled' },
-  { id: 'momentum_updates', path: '/api/match/momentum/updates?after=0&limit=8', basis: 'modelled' },
+  { id: 'meta', path: '/api/match/meta', basis: 'observed' },
+  { id: 'current', path: '/api/match/current', basis: 'observed' },
+  { id: 'frames', path: '/api/match/frames?fromTick=0&stride=1&limit=3', basis: 'observed' },
+  { id: 'formation_history', path: '/api/match/formation/history?fromIndex=0&limit=8', basis: 'observed' },
+  { id: 'momentum_events', path: '/api/match/momentum/events', basis: 'observed_route_only' },
+  { id: 'momentum_updates', path: '/api/match/momentum/updates?after=0&limit=8', basis: 'observed_route_only' },
 ] as const

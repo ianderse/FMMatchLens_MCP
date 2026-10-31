@@ -161,7 +161,12 @@ export function renderNotes(r: NotesOut): string {
   if (o) {
     L.push('')
     L.push(`Observed by the plugin (separate from the notes above): ${o.substitutionFlips} substitution flip(s), ${o.playersWithChanges} player(s) with role or position changes`)
-    for (const p of o.players) L.push(`  ${t(p.name)} (${p.side}): ${p.changes.length} assignment record(s)`)
+    for (const p of o.players) {
+      L.push(`  ${t(p.name)} (${p.side}): ${p.changes.length} assignment record(s)`)
+      for (const c of p.changes as Array<{ gameLabel: string; capturedTick: number; position: string | null; inPossession: string | null; outOfPossession: string | null }>) {
+        L.push(`    ${c.gameLabel} (captured tick ${c.capturedTick}): ${t(c.position ?? '-')} in possession ${t(c.inPossession ?? 'n/a')}; out of possession ${t(c.outOfPossession ?? 'n/a')}`)
+      }
+    }
   }
   if (r.page.nextCursor) L.push(`More: --cursor ${r.page.nextCursor}`)
   for (const w of r.warnings) L.push(`warning: ${t(w)}`)

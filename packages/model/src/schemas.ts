@@ -57,7 +57,7 @@ export const ListDataSchema = z.object({
 
 const ParticipantSchema = z.object({
   playerId: z.string().startsWith('p_'),
-  identity: z.literal('match_local'),
+  identity: z.enum(['match_local', 'persistent', 'linked']), persistentPlayerId: z.string().startsWith('pe_').nullable(),
   upstream: z.object({ playerId: z.number(), uid: z.number().nullable(), slot: z.number() }),
   side: z.enum(['home', 'away']), name: z.string(), shirtNumber: z.number().nullable(), position: z.string().nullable(),
   participation: z.looseObject({ status: z.enum(['played', 'unused_substitute']), elapsedTicks: z.number(), elapsedMinutes: z.number() }),

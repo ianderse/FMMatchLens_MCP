@@ -2,7 +2,7 @@ import { DomainError, compareBoundary, inWindow } from '@fmmi/model'
 import type { Side } from '@fmmi/model'
 import { UNAVAILABLE_COMPONENTS } from './registry.ts'
 import {
-  clipSegments, envelopeCoverage, internalPlayerId, makeCtx, requireParticipant, segmentTicks, sideOfTeam, teamSegments, ticksToMin, upstreamIdOf,
+  clipSegments, clockOf, envelopeCoverage, identityOf, internalPlayerId, makeCtx, requireParticipant, segmentTicks, sideOfTeam, teamSegments, ticksToMin, upstreamIdOf,
 } from './context.ts'
 import type { AnalysisInput, Coverage, Ctx, MetricRow, WindowSpec } from './context.ts'
 import { exposureGate } from './findings.ts'
@@ -43,6 +43,11 @@ function rosterRows(ctx: Ctx, side: Side | null) {
     // Canonical boundaries as "<period>:<tick>", the same text the window inputs accept. offAt null with status played
     // means the player was still on the pitch when the recording ended.
     onAt: boundaryText(p.participation.firstOn), offAt: boundaryText(p.participation.lastOff),
+    // Readable game minutes from the recorded display clock (never tick / 240), beside the canonical boundaries. Labels such as 45+2' are on
+    // the player, substitution and role-timeline results; the 36-player roster stays under the 20 KB output budget without them.
+    onAtMinute: p.participation.firstOn ? clockOf(ctx, p.participation.firstOn).minute : null,
+    offAtMinute: p.participation.lastOff ? clockOf(ctx, p.participation.lastOff).minute : null,
+    ...identityOf(ctx, p.upstreamPlayerId),
   }))
 }
 
@@ -79,7 +84,7 @@ export function summaryQuery(input: AnalysisInput, opts: { teamId?: string } = {
         players: roster,
       },
       substitutions: ctx.rec.substitutionBatches.map((b) => ({
-        side: b.side, at: `${b.period}:${b.tick}`, off: b.off.map((id) => internalPlayerId(ctx, id)), on: b.on.map((id) => internalPlayerId(ctx, id)), pairing: b.pairing,
+        side: b.side, at: `${b.period}:${b.tick}`, atMinute: clockOf(ctx, b).minute, atLabel: clockOf(ctx, b).label, off: b.off.map((id) => internalPlayerId(ctx, id)), on: b.on.map((id) => internalPlayerId(ctx, id)), pairing: b.pairing,
       })),
       events: ctx.rec.eventSummary,
       findings: findings.map((f) => ({ ...f, summary: describeFinding(f) })),

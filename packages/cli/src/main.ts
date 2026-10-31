@@ -42,7 +42,7 @@ const HELP = `fmmi - FM27 match intelligence (Slice 4: offline importer, diagnos
 Live (Slice 5, optional; loopback 127.0.0.1:16726 only; UNVERIFIED against a real match until you run capture and check):
   fmmi live status                                              (is the plugin reachable, is a match running)
   fmmi live capture [--out <dir>] [--socket-seconds <n>]        (run during a REAL match: saves sanitised endpoint shapes under <home>/live-capture)
-  fmmi live check [<capture-file>]                              (validates the saved shapes against this project's schemas)
+  fmmi live check [<capture-file>]                              (reports the schema validation of each full response, made at capture time)
   fmmi note add --live --save <saveId> --setting <t> --prior-value <t> --new-value <t> [--boundary <period>:<tick>] [--side home|away] [--text <t>]
         (pins the change to the live snapshot boundary it read from the plugin; imported into the match's notes when the recording is imported)
   fmmi note compare ln_<id>                                     (live: before and after windows around the live note)
@@ -210,7 +210,7 @@ export async function main(argv: string[], io: Io = defaultIo): Promise<number> 
             }
             let cap: Capture
             try { cap = JSON.parse(readFileSync(file, 'utf8')) as Capture } catch { throw new DomainError('invalid_input', 'The capture file cannot be read as JSON', { reason: 'capture_file' }) }
-            if (!cap || cap.captureVersion !== 1 || !Array.isArray(cap.endpoints) || !cap.websocket) throw new DomainError('invalid_input', 'Not an fmmi live capture file', { reason: 'capture_file' })
+            if (!cap || typeof cap.captureVersion !== 'number' || !Array.isArray(cap.endpoints) || !cap.websocket) throw new DomainError('invalid_input', 'Not an fmmi live capture file', { reason: 'capture_file' })
             const rep = checkCapture(cap)
             emit(rep, renderLiveCheck(rep))
             return rep.ok ? 0 : 1
@@ -266,8 +266,8 @@ export async function main(argv: string[], io: Io = defaultIo): Promise<number> 
             const reader = new LiveReader({ client, useWebSocket: false, minSyncIntervalMs: 0 })
             try {
               const view = await reader.refresh({ force: true })
-              if (view.state !== 'fresh' || !reader.tracked) {
-                throw new DomainError(view.state === 'not_in_match' ? 'not_found' : 'stale_snapshot', `No fresh live snapshot (${view.state}${view.reason ? `: ${view.reason}` : ''}); a live note needs the plugin and a running match`, { state: view.state, reason: view.reason }, true)
+              if ((view.state !== 'fresh' && view.state !== 'held') || !reader.tracked) {
+                throw new DomainError(view.state === 'not_in_match' ? 'not_found' : 'stale_snapshot', `No fresh or held live snapshot (${view.state}${view.reason ? `: ${view.reason}` : ''}); a live note needs the plugin and a running match`, { state: view.state, reason: view.reason }, true)
               }
               const track = reader.tracked
               const bflag = flag(p, 'boundary')

@@ -31,7 +31,10 @@ Answer with exactly these five sections, in this order, using these headings:
 ${HEADINGS}
 
 1. Facts: only what the tools returned. For each fact cite the matchId, the player (playerId and name), the metric id, and the
-   time window (canonical <period>:<tick> boundaries or minutes). Use recorded counts, not adjectives.
+   time window. Write times in prose as game minutes, using the returned minute fields (onAtMinute, offAtMinute, gameMinute,
+   fromMinute and toMinute, or the labels such as 45+2'), for example "went off at about 74.3 min"; the canonical <period>:<tick>
+   boundaries may be added in brackets. Never compute a minute from a tick (tick / 240 is wrong in the second half). Keep the ids and
+   metric ids cited. Use recorded counts, not adjectives.
 2. Interpretation: what the facts suggest. Mark every hypothesis as a hypothesis.
 3. Alternative explanations: at least one other explanation that the same facts allow, and what the data cannot distinguish.
 4. Action: at most ONE suggestion that is testable and reversible, with the measurable signal that would show whether it helped
@@ -40,7 +43,8 @@ ${HEADINGS}
 5. Confidence and what to watch next: state the confidence and its limits (capture coverage, completion status, sample size,
    gates that failed) and what to record or check in the next match.
 
-Rules. One match or an observational before/after comparison never proves a cause. If recipient evidence is inadequate, say that
+Rules. A player with a persistentPlayerId (pe_...) is followed across matches by that id (get_player_trends); a null one has no
+history yet. One match or an observational before/after comparison never proves a cause. If recipient evidence is inadequate, say that
 service cannot be diagnosed and use the passing, aerial and shooting facts instead; do not claim a player received little or no
 service. Missing metrics are unknown, not zero. Ground service is not recorded; do not infer it.`
 

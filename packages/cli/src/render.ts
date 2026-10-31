@@ -80,16 +80,16 @@ export function renderShow(s: Show): string {
     for (const p of s.roster.filter((x) => x.side === sd)) {
       const pa = p.participation
       const when = pa.status === 'unused_substitute' ? 'did not play'
-        : `${pa.enteredAs === 'starter' ? 'starter' : `on p${pa.firstOn?.period} t${pa.firstOn?.tick}`}${pa.lastOff ? `, off p${pa.lastOff.period} t${pa.lastOff.tick}` : pa.onPitchAtEndOfRecording ? ', on at end of recording' : ''}, ${min(pa.elapsedTicks)} min`
+        : `${pa.enteredAs === 'starter' ? 'starter' : `on ${pa.firstOnGame?.label ?? '?'} (p${pa.firstOn?.period} t${pa.firstOn?.tick})`}${pa.lastOff ? `, off ${pa.lastOffGame?.label ?? '?'} (p${pa.lastOff.period} t${pa.lastOff.tick})` : pa.onPitchAtEndOfRecording ? ', on at end of recording' : ''}, ${min(pa.elapsedTicks)} min`
       const c = p.counters
       L.push(`    ${t(p.name).padEnd(24)} ${String(p.position ?? '').padEnd(4)} ${when}${pa.sameTickBatch ? ' [same-tick batch]' : ''}`)
-      if (pa.status === 'played') L.push(`        passes ${c.passesCompleted ?? '-'}/${c.passes ?? '-'}  aerials ${c.aerialsWon ?? '-'}/${c.aerials ?? '-'}  shots ${c.shots ?? '-'}  xG ${c.xg === undefined ? '-' : f2(c.xg)}  goals ${c.goals ?? '-'}  id ${p.playerId}`)
+      if (pa.status === 'played') L.push(`        passes ${c.passesCompleted ?? '-'}/${c.passes ?? '-'}  aerials ${c.aerialsWon ?? '-'}/${c.aerials ?? '-'}  shots ${c.shots ?? '-'}  xG ${c.xg === undefined ? '-' : f2(c.xg)}  goals ${c.goals ?? '-'}  id ${p.playerId}${p.persistentPlayerId ? ` (${p.identity} ${p.persistentPlayerId})` : ' (match-local)'}`)
     }
   }
   if (s.substitutions.length) {
     L.push('')
     L.push('Substitution flips (off/on pairing is not recorded and is never inferred):')
-    for (const b of s.substitutions) L.push(`  ${b.side} p${b.period} tick ${b.tick}: off ${b.off.length}, on ${b.on.length}`)
+    for (const b of s.substitutions) L.push(`  ${b.side} ${b.atLabel} (p${b.period} tick ${b.tick}): off ${b.off.length}, on ${b.on.length}`)
   }
   L.push('')
   L.push(`Events: ${s.events.distinct} distinct (merged by sequenceIndex), ${s.events.withRevisions} revised`)
@@ -114,7 +114,7 @@ export function renderSummary(s: SummaryOut): string {
   L.push('Team comparison (home | away):')
   for (const c of s.summary.comparison) L.push(`  ${c.metric.padEnd(26)} ${cellText(c.home).padStart(10)} | ${cellText(c.away)}`)
   L.push(`Roster: ${r.returned} of ${r.total} recorded (${r.played} played, ${r.unusedSubstitutes} unused substitute(s))`)
-  for (const p of r.players) L.push(`  ${p.playerId}  ${p.side.padEnd(4)} ${t(p.name).padEnd(24)} ${String(p.position ?? '').padEnd(6)} ${p.status === 'played' ? `${p.minutes} min, on ${p.onAt}${p.offAt ? `, off ${p.offAt}` : ''}` : 'did not play'}`)
+  for (const p of r.players) L.push(`  ${p.playerId}${p.persistentPlayerId ? ` [${p.identity} ${p.persistentPlayerId}]` : ''}  ${p.side.padEnd(4)} ${t(p.name).padEnd(24)} ${String(p.position ?? '').padEnd(6)} ${p.status === 'played' ? `${p.minutes} min, on ${p.onAtMinute}' (${p.onAt})${p.offAt ? `, off ${p.offAtMinute}' (${p.offAt})` : ''}` : 'did not play'}`)
   for (const f of s.summary.findings) L.push(`finding: ${t(f.summary)}`)
   for (const w of s.warnings) L.push(`warning: ${t(w)}`)
   return L.join('\n')

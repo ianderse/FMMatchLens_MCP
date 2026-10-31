@@ -1,6 +1,6 @@
 import { TICKS_PER_MINUTE } from './constants.ts'
 import { DomainError } from './errors.ts'
-import type { Boundary, NullReason, PlaySegment } from './types.ts'
+import type { Boundary, NullReason, PeriodSpan, PlaySegment } from './types.ts'
 
 export function compareBoundary(a: Boundary, b: Boundary): number {
   return a.period - b.period || a.tick - b.tick || a.sequence - b.sequence
@@ -175,6 +175,90 @@ export function resolveDisplayMinute(fi: FrameIndex, minute: number, period?: nu
     if (fi.displayTicks[i]! >= d) return { period: p, tick: fi.ticks[i]!, sequence: 0 }
   }
   return fi.endBoundary()
+}
+
+/**
+ * A tick or boundary read off the game clock. `minute` is the displayed game clock in minutes (two decimals) and is null only when
+ * the instant has no clock (the half-time gap, or after the end of the capture). `label` is for people: whole elapsed minutes with
+ * stoppage in the football form ("40'", "45+2'", "90+3'"), "start of match", "half-time" or "after the end of capture".
+ */
+export interface GameClock { minute: number | null; label: string; period: number | null }
+
+/** Whole elapsed minutes of the displayed clock; stoppage after 45 in period 1 and after 90 in period 2 reads "45+n'" and "90+n'". */
+export function minuteLabel(minute: number, period: number | null): string {
+  const whole = Math.floor(minute + 1e-9)
+  if (minute < 0.1 && period !== 2) return "0'"
+  if (period === 1 && whole > 45) return `45+${whole - 45}'`
+  if (period === 2 && whole > 90) return `90+${whole - 90}'`
+  return `${whole}'`
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+/**
+ * Game clock of a tick, from the recorded frame display ticks. NEVER tick / 240: the tick to display-tick offset differs per
+ * period and per recording (period 2 display ticks restart at 45:00, with offsets such as 323 and 564 in the real recordings).
+ * With `period` the tick is read inside that period; without it the period is the one whose frames contain the tick (ticks keep
+ * counting across periods). A tick below zero is the start of the match (the role timeline stores its first entry at -1).
+ */
+export function gameClockAt(fi: FrameIndex, tick: number, period?: number): GameClock {
+  if (fi.length === 0) return { minute: null, label: 'unknown', period: null }
+  if (tick < 0) return { minute: 0, label: 'start of match', period: fi.periods[0]! }
+  let lo = 0, hi = fi.length - 1
+  if (period !== undefined) {
+    const first = fi.firstIndexOfPeriod(period)
+    if (first === undefined) return { minute: null, label: 'unknown', period: null }
+    lo = first
+    while (hi > lo && fi.periods[hi] !== period) hi--
+  }
+  // First frame in [lo, hi] whose tick is at or after `tick`.
+  let a = lo, b = hi + 1
+  while (a < b) { const m = (a + b) >> 1; if (fi.ticks[m]! >= tick) b = m; else a = m + 1 }
+  let i: number
+  if (a > hi) {
+    // After the last frame: read it from the last frame's offset only within one game minute, else there is no clock.
+    if (tick - fi.ticks[hi]! > TICKS_PER_MINUTE) return { minute: null, label: 'after the end of capture', period: null }
+    i = hi
+  } else {
+    i = a
+    // In the gap between two periods there is no clock.
+    if (period === undefined && fi.ticks[i]! > tick && i > 0 && fi.periods[i - 1] !== fi.periods[i]) return { minute: null, label: 'half-time', period: null }
+    // The nearer of the two surrounding frames of the same period supplies the offset.
+    if (fi.ticks[i]! > tick && i > lo && fi.periods[i - 1] === fi.periods[i] && tick - fi.ticks[i - 1]! < fi.ticks[i]! - tick) i--
+  }
+  const p = fi.periods[i]!
+  const minute = round2(Math.max(0, tick - (fi.ticks[i]! - fi.displayTicks[i]!)) / TICKS_PER_MINUTE)
+  return { minute, label: minuteLabel(minute, p), period: p }
+}
+
+/**
+ * Game clock for views that have no frames (the catalog's stored recording keeps only each period's first and last display tick).
+ * The period offset (tick minus display tick) is read at both ends of the period; when they agree it is applied to the tick, when they
+ * differ the clock is reported as unknown rather than guessed. Never tick / 240. `gameClockAt` over the frames is exact and is used by
+ * every analytics result; this one only serves `fmmi show` and the observed role changes in the tactical-notes result.
+ */
+export function gameClockFromPeriods(periods: readonly PeriodSpan[], tick: number, period?: number): GameClock {
+  if (periods.length === 0) return { minute: null, label: 'unknown', period: null }
+  if (tick < 0) return { minute: 0, label: 'start of match', period: periods[0]!.period }
+  let span: PeriodSpan | undefined
+  if (period !== undefined) span = periods.find((p) => p.period === period)
+  else {
+    span = periods.find((p) => tick >= p.firstTick && tick <= p.lastTick)
+    if (!span) {
+      if (tick < periods[0]!.firstTick) span = periods[0]
+      else {
+        const last = periods[periods.length - 1]!
+        if (tick <= last.lastTick) return { minute: null, label: 'half-time', period: null }
+        if (tick - last.lastTick > TICKS_PER_MINUTE) return { minute: null, label: 'after the end of capture', period: null }
+        span = last
+      }
+    }
+  }
+  if (!span) return { minute: null, label: 'unknown', period: null }
+  const first = span.firstTick - span.firstDisplayTick, end = span.lastTick - span.lastDisplayTick
+  if (first !== end) return { minute: null, label: 'unknown', period: span.period }
+  const minute = round2(Math.max(0, tick - first) / TICKS_PER_MINUTE)
+  return { minute, label: minuteLabel(minute, span.period), period: span.period }
 }
 
 /** Elapsed on-pitch game-clock ticks inside a half-open window. Halftime is excluded because segments are per period. */

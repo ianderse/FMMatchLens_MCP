@@ -19,7 +19,7 @@ export const MetricRowSchema = z.strictObject({
 }).refine((r) => (r.value === null) === (r.nullReason !== undefined), { message: 'a null value needs a nullReason and a value must not have one' })
 
 const TeamRef = z.strictObject({ teamId: z.string(), name: z.string(), side: Side, managed: z.boolean() })
-const PlayerRef = z.looseObject({ playerId: z.string().startsWith('p_'), name: z.string(), side: Side, teamId: z.string(), identity: z.literal('match_local') })
+const PlayerRef = z.looseObject({ playerId: z.string().startsWith('p_'), name: z.string(), side: Side, teamId: z.string(), identity: z.enum(['match_local', 'persistent', 'linked']), persistentPlayerId: z.string().startsWith('pe_').nullable() })
 
 export const EnvelopeShape = {
   schemaVersion: z.string(),
@@ -127,6 +127,8 @@ export const SummaryResultSchema = z.looseObject({
         playerId: z.string().startsWith('p_'), name: z.string(), side: Side, position: z.string().nullable(), shirtNumber: z.number().nullable(),
         status: z.enum(['played', 'unused_substitute']), enteredAs: z.enum(['starter', 'substitute']).nullable(), minutes: z.number(),
         onAt: z.string().nullable(), offAt: z.string().nullable(),
+        onAtMinute: z.number().nullable(), offAtMinute: z.number().nullable(),
+        identity: z.enum(['match_local', 'persistent', 'linked']), persistentPlayerId: z.string().startsWith('pe_').nullable(),
       })),
     }),
     findings: z.array(Finding), suppressedFindings: z.array(Suppressed),

@@ -68,3 +68,11 @@ export interface PlaySegment {
   fromReason: 'start_of_capture' | 'period_start' | 'on_pitch'
   toReason: 'off_pitch' | 'period_end' | 'recording_end'
 }
+
+/**
+ * What a match-scoped result says about a player's identity in the save. `persistentPlayerId` (pe_...) is present for a persistent or
+ * linked player and null for a truly match-local one. The p_ id of the match never changes and keeps working everywhere.
+ */
+export type PlayerIdentityStatus = 'match_local' | 'persistent' | 'linked'
+export interface PlayerIdentityInfo { identity: PlayerIdentityStatus; persistentPlayerId: string | null }
+export const MATCH_LOCAL_IDENTITY: PlayerIdentityInfo = { identity: 'match_local', persistentPlayerId: null }

@@ -225,19 +225,20 @@ describe('[AC2][S1][MODELLED] reconnect, duplicates and stale data never regress
 })
 
 describe('[S1][AC1][MODELLED] states: fresh, stale, not_connected, not_in_match, bad metadata, changed endpoints', () => {
-  it('stale: a latest frame older than the freshness limit is stale and is not analysed; a newer frame makes it fresh again', async () => {
+  it('a latest frame older than the freshness limit while the plugin reports nothing newer is HELD (it was stale before the held state existed) and is analysed with the held label; a newer frame makes it fresh again', async () => {
     const { replay } = await syntheticReplay()
     const r = await rig(replay, { staleAfterMs: 10_000 })
     r.plugin.advance(100)
     expect((await r.reader.refresh()).state).toBe('fresh')
-    r.time.now += 60_000 // a minute of wall time with no new frame (paused game or a stalled plugin)
+    r.time.now += 60_000 // a minute of wall time with no new frame (paused game, half-time or a stalled plugin: the source does not say which)
     r.reader.view()
-    const stale = await r.reader.refresh({ force: true })
-    expect(stale.state).toBe('stale')
-    expect(stale.reason).toBe('latest_frame_too_old')
-    expect(stale.latest!.captureAgeMs).toBeGreaterThan(10_000)
-    expect((await liveMatch(r.reader)).available).toBe(false)
-    await expect(livePlayer(r.reader, { playerId: 'p_x' })).rejects.toMatchObject({ code: 'stale_snapshot', retryable: true, details: { state: 'stale' } })
+    const held = await r.reader.refresh({ force: true })
+    expect(held.state).toBe('held')
+    expect(held.reason).toBe('no_new_frames_game_not_advancing')
+    expect(held.latest!.captureAgeMs).toBeGreaterThan(10_000)
+    const m = await liveMatch(r.reader)
+    expect(m.available).toBe(true)
+    expect(m.live.held!.gameAdvancing).toBe(false)
     r.plugin.advance(10)
     expect((await r.reader.refresh({ force: true })).state).toBe('fresh')
     await r.close()
@@ -399,7 +400,7 @@ describe('[S2][MODELLED] on demand, low impact: no polling, bounded work, backpr
 
   it('a long catch-up is bounded per call (pages) and reports catchingUp; later calls finish it; an oversized page halves itself', async () => {
     const { replay } = await syntheticReplay()
-    const r = await rig(replay, { pageSize: 25, maxPagesPerSync: 2 })
+    const r = await rig(replay, { pageSize: 25, maxPagesPerSync: 2, catchUpBudgetMs: 0 }) // budget 0 = one sync per call, the pre-held behaviour
     r.plugin.advanceTo(replay.frames.length)
     const first = await r.reader.refresh()
     expect(first.counters.framesAccepted).toBe(50)

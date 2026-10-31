@@ -1,7 +1,7 @@
 import type { NormalizedEvent, Participant, Side } from '@fmmi/model'
 import { DANGER_AREA, GATES, LANES, UNAVAILABLE_THREAT, getDefinition } from './registry.ts'
 import {
-  clipSegments, displayMinuteAt, eventInWindow, inSegments, internalPlayerId, makeCtx, segmentTicks, sideOfTeam, teamDelta, ticksToMin,
+  clipSegments, clockOf, displayMinuteAt, eventInWindow, inSegments, internalPlayerId, makeCtx, segmentTicks, sideOfTeam, teamDelta, ticksToMin,
 } from './context.ts'
 import type { Ctx, WindowSpec } from './context.ts'
 import { completed, isFinalThirdEntry, passGeometry, scopedPasses } from './passes.ts'
@@ -94,6 +94,7 @@ function rolesAt(ctx: Ctx, p: Participant) {
   const inWin = entries.filter((r) => r.capturedTick >= from).length
   return {
     inPossession: cur?.inPossession ?? null, outOfPossession: cur?.outOfPossession ?? null, asOfCapturedTick: cur?.capturedTick ?? null,
+    asOfGameMinute: cur ? clockOf(ctx, { tick: cur.capturedTick }).minute : null, asOfGameLabel: cur ? clockOf(ctx, { tick: cur.capturedTick }).label : null,
     revisionsInWindow: inWin,
   }
 }

@@ -3,7 +3,7 @@ import type { Boundary, NormalizedRecording, Side } from '@fmmi/model'
 import { compareQuery, playerQuery, resolveWindowOptions, summaryQuery } from '@fmmi/analytics'
 import type { AnalysisInput, WindowOptions } from '@fmmi/analytics'
 import { createHash } from 'node:crypto'
-import { LiveReader } from './reader.ts'
+import { LiveReader, isServable } from './reader.ts'
 import type { LiveView } from './reader.ts'
 import { liveHash } from './track.ts'
 import type { MatchTrack } from './track.ts'
@@ -51,7 +51,7 @@ function header(view: LiveView) {
     state: view.state, reason: view.reason, upstreamMatchId: view.upstreamMatchId,
     snapshot: view.snapshot ? { ...view.snapshot, label: snapshotLabel(view.snapshot) } : null,
     latest: view.latest,
-    connection: view.connection, metadata: view.metadata, plugin: view.plugin, counters: view.counters, catchingUp: view.catchingUp,
+    connection: view.connection, metadata: view.metadata, plugin: view.plugin, counters: view.counters, catchingUp: view.catchingUp, held: view.held,
   }
 }
 
@@ -59,7 +59,7 @@ function header(view: LiveView) {
 export function notServable(view: LiveView): DomainError {
   const d = { state: view.state, reason: view.reason, lastKnown: view.snapshot ? snapshotLabel(view.snapshot) : null, captureAgeMs: view.latest?.captureAgeMs ?? null }
   if (view.state === 'not_in_match') return new DomainError('not_found', 'The plugin is reachable but no match is in progress', { ...d, retryable_hint: 'start or resume a match' }, true)
-  return new DomainError('stale_snapshot', view.state === 'stale' ? 'The latest live frame is older than the freshness limit; the snapshot is not served' : 'The local plugin is not reachable; no live snapshot is served', d, true)
+  return new DomainError('stale_snapshot', view.state === 'stale' ? (view.catchingUp ? 'The reader is still catching up with the plugin; ask again in a few seconds' : 'The latest live frame is older than the freshness limit and the plugin did not confirm that nothing newer exists; the snapshot is not served') : 'The local plugin is not reachable; no live snapshot is served', d, true)
 }
 
 async function fresh(reader: LiveReader) {
@@ -79,15 +79,15 @@ export async function liveMatch(reader: LiveReader) {
   const view = await fresh(reader)
   const base = { schemaVersion: LIVE_SCHEMA_VERSION, query: 'live_match' as const, readOnly: true as const, live: header(view) }
   const track = reader.tracked
-  if (view.state !== 'fresh' || !track) {
-    return checked({ ...base, available: false as const, summary: null, windows: null, warnings: [`live_${view.state}: ${view.reason ?? 'no snapshot'}`, 'no analysis is served for a snapshot that is not fresh'] }, 'get_live_match')
+  if (!isServable(view.state) || !track) {
+    return checked({ ...base, available: false as const, summary: null, windows: null, warnings: [`live_${view.state}: ${view.reason ?? 'no snapshot'}`, 'no analysis is served for a snapshot that is not fresh or held'] }, 'get_live_match')
   }
   const input = liveInput(track)
   if (!input) return checked({ ...base, available: false as const, summary: null, windows: null, warnings: ['no_frame_yet'] }, 'get_live_match')
   const full = summaryQuery(input)
   // Roster entries are kept (playerIds are needed for the follow-up tool) but trimmed to fit the output limit when needed.
   const draft: { schemaVersion: string; query: 'live_match'; readOnly: true; live: ReturnType<typeof header>; available: true; summary: unknown; windows: ReturnType<typeof windowsOf>; warnings: string[] } = {
-    ...base, available: true as const, summary: full, windows: windowsOf(input.decoded.recording), warnings: [...full.warnings],
+    ...base, available: true as const, summary: full, windows: windowsOf(input.decoded.recording), warnings: [...full.warnings, ...(view.held ? [`live_held: ${view.held.statement}`] : [])],
   }
   if (bytes(draft) > LIVE_MAX_BYTES - 1024) {
     const roster = full.summary.roster
@@ -112,7 +112,7 @@ export interface LiveNoteRef { noteId: string; side: Side; period: number; tick:
 export async function livePlayer(reader: LiveReader, o: { playerId: string; window?: WindowOptions; note?: LiveNoteRef | null }) {
   const view = await fresh(reader)
   const track = reader.tracked
-  if (view.state !== 'fresh' || !track) throw notServable(view)
+  if (!isServable(view.state) || !track) throw notServable(view)
   const input = liveInput(track)
   if (!input) throw notServable({ ...view, state: 'stale', reason: 'no_frame_yet' })
   const head = { schemaVersion: LIVE_SCHEMA_VERSION, readOnly: true as const, live: header(view) }
@@ -144,7 +144,7 @@ const roleText = (a: { position: string; role: string; duty: string | null } | n
 export async function liveTacticalEvents(reader: LiveReader, o: { limit?: number; sinceTick?: number; notes?: (upstreamMatchId: string) => LiveEventNote[] }) {
   const view = await fresh(reader)
   const track = reader.tracked
-  if (view.state !== 'fresh' || !track) throw notServable(view)
+  if (!isServable(view.state) || !track) throw notServable(view)
   const input = liveInput(track)
   if (!input) throw notServable({ ...view, state: 'stale', reason: 'no_frame_yet' })
   const limit = o.limit ?? 10
@@ -208,7 +208,7 @@ export function liveBoundary(track: MatchTrack, explicit?: { period: number; tic
 export async function liveNoteCompare(reader: LiveReader, note: LiveNoteRef & { upstreamMatchId: string }) {
   const view = await fresh(reader)
   const track = reader.tracked
-  if (view.state !== 'fresh' || !track) throw notServable(view)
+  if (!isServable(view.state) || !track) throw notServable(view)
   if (track.matchId !== note.upstreamMatchId) throw new DomainError('not_found', 'The live match is not the match this note was made in', { reason: 'different_live_match' })
   const input = liveInput(track)
   if (!input) throw notServable({ ...view, state: 'stale', reason: 'no_frame_yet' })

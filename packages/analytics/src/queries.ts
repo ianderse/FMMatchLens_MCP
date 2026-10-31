@@ -2,7 +2,7 @@ import { DomainError, TICKS_PER_MINUTE, counterDelta, inWindow, participationAt 
 import type { Participant, Side } from '@fmmi/model'
 import { UNAVAILABLE_COMPONENTS, getDefinition, METRIC_DICTIONARY_VERSION, GATES } from './registry.ts'
 import {
-  clipSegments, teamSegments, counterRow, displayMinuteAt, internalPlayerId, makeCtx, makeRow, playerDelta, requireParticipant, segmentTicks, sideOfTeam,
+  clipSegments, teamSegments, clockOf, counterRow, displayMinuteAt, identityOf, internalPlayerId, makeCtx, makeRow, playerDelta, requireParticipant, segmentTicks, sideOfTeam,
   teamDelta, ticksToMin, upstreamIdOf, inSegments, envelopeCoverage,
 } from './context.ts'
 import type { AnalysisInput, Coverage, Ctx, MetricRow, WindowSpec } from './context.ts'
@@ -33,7 +33,7 @@ export function worst(...c: Coverage[]): Coverage {
 export function playerRef(ctx: Ctx, p: Participant) {
   return {
     playerId: internalPlayerId(ctx, p.upstreamPlayerId), name: p.name, side: p.side, teamId: ctx.input.ids.teamIds[p.side], position: p.position,
-    upstream: { playerId: p.upstreamPlayerId, uid: p.uid, slot: p.slot }, identity: 'match_local' as const,
+    upstream: { playerId: p.upstreamPlayerId, uid: p.uid, slot: p.slot }, ...identityOf(ctx, p.upstreamPlayerId),
   }
 }
 export function teamRef(ctx: Ctx, side: Side) {
@@ -329,15 +329,27 @@ function byPeriod(x: PlayerExposure) {
   return [...m.entries()].sort((a, b) => a[0] - b[0]).map(([period, receptions]) => ({ period, receptions }))
 }
 
+/** The role timeline with the game clock beside each canonical captured tick. The first entry (tick -1) is the starting assignment. */
+export function roleTimelineView(ctx: Ctx, p: Participant) {
+  return p.roleTimeline.map((r) => ({ ...r, gameMinute: clockOf(ctx, { tick: r.capturedTick }).minute, gameLabel: clockOf(ctx, { tick: r.capturedTick }).label }))
+}
+
 export function participationBlock(ctx: Ctx, p: Participant) {
   const segs = playerWindowSegments(ctx, p)
   return {
     status: p.participation.status, enteredAs: p.participation.enteredAs, minutesInWindow: ticksToMin(segmentTicks(segs)), ticksInWindow: segmentTicks(segs),
     minutesInRecording: p.participation.elapsedMinutes,
-    segments: segs.map((s) => ({ period: s.period, fromTick: s.fromTick, toTick: s.toTick })),
+    segments: segs.map((s) => ({
+      period: s.period, fromTick: s.fromTick, toTick: s.toTick,
+      fromMinute: clockOf(ctx, { tick: s.fromTick, period: s.period }).minute, toMinute: clockOf(ctx, { tick: s.toTick, period: s.period }).minute,
+    })),
     firstOn: p.participation.firstOn, lastOff: p.participation.lastOff, onPitchAtEndOfRecording: p.participation.onPitchAtEndOfRecording,
     sameTickBatch: p.participation.sameTickBatch,
-    note: 'Playing minutes are verified elapsed game-clock ticks / 240 inside the window, halftime excluded.',
+    // Readable game minutes beside the canonical boundaries (firstOn, lastOff, segments). They come from the recorded frame display
+    // ticks, never from tick / 240.
+    firstOnGame: p.participation.firstOn ? clockOf(ctx, p.participation.firstOn) : null,
+    lastOffGame: p.participation.lastOff ? clockOf(ctx, p.participation.lastOff) : null,
+    note: 'Playing minutes are verified elapsed game-clock ticks / 240 inside the window, halftime excluded. Game minutes (firstOnGame, lastOffGame, segment fromMinute and toMinute) are read from the recorded display clock.',
   }
 }
 
@@ -366,7 +378,7 @@ export function playerQuery(input: AnalysisInput, playerId: string, opts: QueryO
     player: {
       ...playerRef(ctx, p),
       participation: participationBlock(ctx, p),
-      roleTimeline: p.roleTimeline,
+      roleTimeline: roleTimelineView(ctx, p),
       nativeRating: { value: p.nativeRating, basis: 'observed_value_at_last_frame' as const },
       rating: ratingBlock(ctx, p),
       metrics: counters,

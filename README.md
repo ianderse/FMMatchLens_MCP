@@ -15,44 +15,50 @@ No game, network or LLM is needed to import or analyse recordings, and no LLM ru
 
 ## Status
 
-Slices 0 to 5 are built. The offline product works on real recordings. The live and remote parts are built but have only been run against test doubles and on loopback.
+Slices 0 to 5 are built. The offline product works on real recordings, and Claude Code has reviewed real matches through the MCP server. The live tools have run on one real match. Remote access has only run on loopback.
 
 | Slice | Delivers | Status |
 | --- | --- | --- |
 | 0 | Upstream viability and data audit | Done, on two real recordings |
 | 1 | Importer, SQLite catalog, minimal CLI | Done, used on real recordings |
 | 2 | Tactical diagnostics, metric registry, reports | Done, used on real recordings |
-| 3 | Read-only MCP server over stdio | Server tested end to end with the official SDK client; **no real LLM client session yet** |
+| 3 | Read-only MCP server over stdio | Used from Claude Code on real matches; other clients untested |
 | 3b | Opposition threat by lane, estimated rating breakdown | Done, used on real recordings |
-| 4 | Season history, player identity, tactical notes | Done on two real matches, the smallest possible season sample |
-| 5 | Live reader, continuations, remote HTTP | Continuations tested on real recordings; **live and remote unverified**, see below |
+| 4 | Season history, player identity, tactical notes | Done on three real matches, still a very small season sample |
+| 5 | Live reader, continuations, remote HTTP | Continuations tested on real recordings; live tools ran on one real match, with **pause handling and live figures unproven**; **remote unverified**, see below |
 | 6 | Optional visual reports | Not started; parked until the reports have proved useful |
 
 ## Plan
 
 Next, in order:
 
-1. **Verify the live path during a real match.** Run `fmmi live capture` once in each half, then `fmmi live check`. Fix whatever differs from the model.
-2. **Run a real LLM review.** Connect an MCP client over stdio, review a real match, and check the saved answer with `scripts/review-check.mts`.
-3. **Grow the season sample.** Keep importing matches and confirming them. Rolling windows and cross-match player identity have only seen two matches.
-4. **Verify remote use from the Mac Studio**, if it is still wanted: OMP over Tailscale or another private transport.
-5. **Decide on Slice 6** once the reports have been used for a while.
+1. **Prove the live tools at a real break.** Ask for a briefing at halftime and at full time, and compare live figures with FM's match stats and the finished recording.
+2. **Make setup easier.** A guided `fmmi setup`, a default save, a remembered recordings folder, MCP client registration, and confirming a match without pasting its ID.
+3. **Grow the season sample.** Keep importing and confirming matches. Rolling windows and cross-match player identity have only seen three.
+4. **Try another MCP client**, such as OpenAI Codex, to see whether the five-part review survives without Claude Code.
+5. **Verify remote use from the Mac Studio**, if it is still wanted: OMP over Tailscale or another private transport.
+6. **Decide on Slice 6** once the reports have been used for a while.
 
 ## What is and is not verified
 
 Verified on real data:
 
-- Parsing, statistics and counter reconciliation on two real recordings (Farnham 0-3 Torquay, Hemel Hempstead 1-2 Farnham).
+- Parsing, statistics and counter reconciliation on two real recordings (Farnham 0-3 Torquay, Hemel Hempstead 1-2 Farnham). A third (Folkestone 2-1 Farnham) imported as a full, valid recording.
 - Receptions recounted independently from raw events, and attacking-lane orientation checked against where labelled players actually stand.
 - Cross-match player trends, and continuation of a truncated copy of a real recording.
+- The Hemel role timeline, confirmed by the user from their own game.
+- Claude Code reaching the tools and answering a plain review question in the five-part structure, from any folder.
+- On one real match, in play: all nine HTTP routes answered, full responses passed the schemas, the socket delivered ticks, and all three live tools returned `fresh` data.
 
 Not verified:
 
 | Area | State |
 | --- | --- |
-| Live frames, metadata, formation and momentum routes, WebSocket | Modelled from the vendored frontend source; never seen from a running plugin. Only `/api/health`, `/api/archives` and `/api/match/status` have been observed |
+| Live `held` state | Built from what the plugin reported at a real halftime, but tested only against a fake plugin; no real briefing at a break yet |
+| Live figures | Never compared with FM's match stats or a finished recording |
+| WebSocket `formation_changed` | Never seen from a real plugin |
 | Remote MCP | Run on loopback only; no Tailscale, no real network, no Mac, no OMP |
-| LLM use | No real client transcript; the review checker has only seen test answers |
+| LLM use | Claude Code only; the review checker has only seen test answers |
 | Pass receivers | Internally corroborated, not checked against the FM match screen |
 | Player `uid` | Not checked across different saves or transfers |
 | In-progress recordings | Whether the plugin keeps earlier frames byte-identical while writing is unknown |
@@ -126,19 +132,19 @@ The server is read-only, and writes happen only in the local CLI. It accepts no 
 
 `list_matches`, `get_match_summary`, `get_player_match`, `get_passing_network`, `get_striker_service`, `compare_match_periods`, `get_opposition_threat`, `get_recording_status`, `list_players`, `get_season_trends`, `get_player_trends`, `get_tactical_notes`, `compare_tactical_change`
 
-It also has a `match_review` prompt for a five-part review. Client configuration is in `docs/setup-windows.md`.
+The server's instructions ask clients to answer review questions in five parts: facts, interpretation, alternative explanations, action and confidence. A client can ignore those instructions, so there is also a `match_review` prompt that requests the structure directly (`/mcp__fmmi__match_review` in Claude Code). Client configuration is in `docs/setup-windows.md`.
 
 ## Optional: live match use
 
-**Unverified against a real match.** Live tools stay off unless you start the server with `--live`, which adds `get_live_match`, `get_live_player_analysis` and `get_recent_tactical_events`.
+**Seen working on one real match in play; briefings at a break are not yet proven.** Live tools stay off unless you start the server with `--live`, which adds `get_live_match`, `get_live_player_analysis` and `get_recent_tactical_events`.
 
     npm run fmmi -- live status                 # is the plugin reachable, is a match running
     npm run fmmi -- live capture                # run DURING a real match, ideally once per half
-    npm run fmmi -- live check                  # compare the newest capture with this project's schemas
+    npm run fmmi -- live check                  # validate that capture against this project's schemas
     npm run fmmi -- note add --live --save <saveId> --setting Mentality --prior-value Balanced --new-value Positive
     npm run fmmi -- note compare ln_<id>
 
-The reader talks only to `127.0.0.1:16726`, and no setting changes that address. It does nothing until a live tool is called, sends the plugin at most 4 requests per second, and keeps no frames. Every result names its snapshot (`live as of game minute N / period P / tick T`) and its state, and only a `fresh` snapshot is analysed. A live note becomes a normal tactical note when the finished recording is imported.
+The reader talks only to `127.0.0.1:16726`, and no setting changes that address. It does nothing until a live tool is called, sends the plugin at most 4 requests per second, and keeps no frames. Every result names its snapshot (`live as of game minute N / period P / tick T`) and its state. `fresh` and `held` are analysed: `held` means the data is caught up but the game has stopped advancing, as at a pause, halftime or full time. The plugin does not say which, so any such label is a guess. A live note becomes a normal tactical note when the finished recording is imported.
 
 ## Optional: remote MCP
 

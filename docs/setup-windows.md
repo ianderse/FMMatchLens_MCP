@@ -139,27 +139,37 @@ No real model transcript is included in this repository: the samples in `tests/m
 - `revision_unavailable`: the pinned revision does not belong to that match, or its retained snapshot cannot be read.
 - Node errors about `.ts` files: use Node >= 22.18.
 
-## 9. Live reader (Slice 5, optional): STATUS UNVERIFIED AGAINST A REAL MATCH
+## 9. Live reader (Slice 5, optional): seen working in ONE real match (2026-10-31), not a guarantee
 
 What was built: a local reader for the plugin API at `http://127.0.0.1:16726` and `ws://127.0.0.1:16726/ws`, three extra read-only MCP tools
 (`get_live_match`, `get_live_player_analysis`, `get_recent_tactical_events`) and a CLI live note. The address is a constant in
 `packages/live/src/endpoint.ts`: no variable, flag or config key changes it, and there is no way to point it at another host.
 
-What has and has not been seen. Only `/api/health`, `/api/archives` and `/api/match/status` were ever observed from a real plugin
-(`docs/data-coverage.md` section 10). The frames, metadata, formation history and momentum routes and the WebSocket were NEVER seen
-in real use; their shapes are modelled from the vendored v0.7.0 frontend source, and the plugin sources `LocalApiServer.cs` and
-`WebSocketHub.cs` were not vendored or read. All live tests run against a test-only fake plugin that replays frames (real ones where a
-real recording exists) through those modelled routes. **The live path is unverified against a real match until you have run the
-commands below during one and `fmmi live check` has passed.** Even then it is one capture, not a guarantee.
+What has and has not been seen. `/api/health`, `/api/archives` and `/api/match/status` were observed from a real plugin before
+(`docs/data-coverage.md` section 10). On 2026-10-31, during one real match, all nine HTTP routes answered and the WebSocket delivered
+`connection_status` and `realtime_tick` envelopes. `formation_changed` was NOT seen. The first attempt failed with `metadata_invalid`
+because substitutes carry `null` for `inPossession` and `outOfPossession` in `/api/match/meta`; the schemas now accept null, and the
+reader then reached `fresh` on the real match. The momentum routes answered but their bodies are not read. That is one match in one
+session: it is not a guarantee for other match states, and the plugin sources `LocalApiServer.cs` and `WebSocketHub.cs` were not vendored or read.
+
+At real half-time the plugin gave NO break signal: `/api/health` kept saying `inMatch: true` (tick 11093), `/api/match/status` said period 1 with
+`lastTick` 11093, `/api/match/current` kept the same frame (display tick 11092) while its `capturedUnixMilliseconds` aged, and the socket stayed
+open. The reader therefore has a fifth state, `held` (see below). All live tests run against a test-only fake plugin (modelled), which now
+also pauses, serves null assignments for substitutes and answers `lastTick`.
 
     npm run fmmi -- live status                 # is the plugin reachable, is a match running (uses /api/health only)
     npm run fmmi -- live capture                # run DURING a real match (ideally once in each half)
-    npm run fmmi -- live check                  # validates the newest capture against this project's schemas
+    npm run fmmi -- live check                  # reports the validation (made at capture time) of each full response
 
 `live capture` asks each route once, listens on the socket for up to 10 s (`--socket-seconds n`, `0` to skip) and writes a sanitised
-skeleton (structure and types; free text replaced, ids zeroed, arrays cut to two elements) to `%LOCALAPPDATA%\fmmi\live-capture\`
-(or `--out <dir>`), a gitignored location. Read the file before sharing it. `live check` names every route that does not match, says
-which routes the capture did not cover (a capture with no match running verifies nothing) and exits 1 on a mismatch. If it reports
+skeleton (structure and types; free text replaced, ids zeroed, arrays cut to two elements) and, for every route and every sampled
+socket envelope, the result of validating the FULL raw response with its schema: a pass/fail flag and up to 10 issues, each a path with
+array indices collapsed to `[]`, the issue code and the expected and received types, never a value or a name. It is stored beside the
+skeleton to `%LOCALAPPDATA%\fmmi\live-capture\`
+(or `--out <dir>`), a gitignored location. Read the file before sharing it. `live check` reports that stored verdict (the cut skeleton is not validated: it would hide an invalid third array element), names every
+route that does not match, says which routes the capture did not cover (a capture with no match running verifies nothing) and exits 1 on a
+mismatch. A capture file made by an older version has no such verdict: every line reads `recapture_needed`, the check exits 1 and nothing is verified;
+capture again during a match. If it reports
 one, the reader degrades with `schema_mismatch` for that route instead of failing; send the capture file so the model can be corrected.
 
 Low impact by design. Nothing runs until a live tool is called. A call may start a sync (at most one per 1.5 s), reading only what
@@ -169,11 +179,24 @@ from the historical frames), coalesced to one parse per 500 ms and closed after 
 the counters and the event list. There is no LLM call and no loop at frame rate.
 
 MCP: add `--live` to the server arguments (`"args": ["...fmmi-mcp.mjs", "--live"]`). Without it the server offers exactly the thirteen
-tools. Every live result states `live as of game minute N / period P / tick T` and one of `fresh`, `stale` (latest frame older than
-10 s of wall time), `not_connected` (plugin unreachable, for example the game exited) or `not_in_match`; only a `fresh` snapshot is
-analysed, anything else gets `stale_snapshot` (retryable) or `not_found`. For a halftime briefing call `get_live_match`, then
-`get_live_player_analysis` per player, and quote the snapshot minute. Live ids (`lv_`, `lr_`, `lt_`, `p_`) are valid only for the
-running match; they are not catalog ids and no offline tool accepts them.
+tools. Every live result states `live as of game minute N / period P / tick T` and one of:
+
+- `fresh`: a frame arrived in the last 10 s of wall time.
+- `held`: the plugin is reachable, says a match is in progress, the match id is unchanged, the reader holds every frame the plugin has
+  (the plugin's `lastTick` equals the snapshot tick) and no new frame has arrived for more than 10 s. The game is not advancing: a pause, a
+  break or the end of the match. The source does not say which, so the result says how long no frame arrived and never asserts half-time or
+  full time; `held.likelyBreak` is a labelled guess from the game clock only (`half_time` in period 1 at or past 45:00,
+  `end_of_period_or_full_time` in a later period at or past 90:00; the match is never marked complete). `held` is analysed exactly like
+  `fresh`, so a halftime briefing works. The state is re-confirmed with the plugin on every call; if the plugin goes away it becomes
+  `not_connected`, and if frames resume it becomes `fresh` with no duplicates.
+- `stale`: not usable: behind the plugin (`behind_plugin`, `catching_up`), or data that cannot be confirmed current. Not analysed.
+- `not_connected`: the plugin is unreachable, for example the game exited. Not analysed.
+- `not_in_match`: the plugin is reachable but no match is running. Not analysed.
+
+A live call waits up to about 8 s (real time, through the 4 requests/s governor) for the reader to catch up with the plugin, then answers `fresh` or
+`held` if it caught up, or `stale` with `catchingUp: true` if not (ask again). `held` is a deviation from the specification, which lists fresh,
+stale and not-in-match. For a halftime briefing call `get_live_match`, then `get_live_player_analysis` per player, and quote the snapshot minute.
+Live ids (`lv_`, `lr_`, `lt_`, `p_`) are valid only for the running match; they are not catalog ids and no offline tool accepts them.
 
 Live note (CLI only; the MCP server only reads them):
 

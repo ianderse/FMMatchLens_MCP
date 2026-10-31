@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { main } from '@fmmi/cli'
 import type { Io } from '@fmmi/cli'
-import { checkCapture, sanitize } from '@fmmi/live'
+import { MetaSchema, checkCapture, sanitize } from '@fmmi/live'
 import type { Capture } from '@fmmi/live'
 import { cleanupAll, tmp } from '../support/helpers.ts'
 import { rig, syntheticReplay } from '../support/live.ts'
@@ -65,7 +65,7 @@ describe('[S4][MODELLED] fmmi live capture / check', () => {
     expect(chk.body!.data).toMatchObject({ ok: true, verifiesLivePath: true })
     expect(chk.body!.data.lines.map((l: Json) => l.verdict).every((v: string) => v === 'ok')).toBe(true)
     expect(chk.body!.data.lines.find((l: Json) => l.id === 'health').basis).toBe('observed')
-    expect(chk.body!.data.lines.find((l: Json) => l.id === 'frames').basis).toBe('modelled')
+    expect(chk.body!.data.lines.find((l: Json) => l.id === 'frames').basis).toBe('observed')
     const text = await textCli(home)('live', 'check', file)
     expect(text.out).toMatch(/Live capture check: no mismatch, complete/)
     expect(text.out).toMatch(/ONE real capture/)
@@ -83,15 +83,15 @@ describe('[S4][MODELLED] fmmi live capture / check', () => {
     const file = res.body!.data.file as string
     const cap = JSON.parse(readFileSync(file, 'utf8')) as Capture
 
+    // The verdict is the one stored at capture time from the RAW response; the skeleton only supplies the extra-key notes.
     const bad = structuredClone(cap)
-    const frames = bad.endpoints.find((e) => e.id === 'frames')!.skeleton as Json
-    delete frames.frames[0].home.passesCompleted // a counter the plugin no longer sends
-    const health = bad.endpoints.find((e) => e.id === 'health')!.skeleton as Json
-    health.inMatch = 'yes' // a retyped field
+    const issue = (path: string, code: string) => ({ valid: false, issueCount: 1, issues: [{ path, code, expected: 'number', received: 'undefined' }] })
+    bad.endpoints.find((e) => e.id === 'frames')!.validation = issue('frames[].home.passesCompleted', 'invalid_type') // a counter the plugin no longer sends
+    bad.endpoints.find((e) => e.id === 'health')!.validation = issue('inMatch', 'invalid_type') // a retyped field
     const meta = bad.endpoints.find((e) => e.id === 'meta')!.skeleton as Json
     meta.extraTopLevel = 1 // an additive change: reported, not a failure
     const tick = bad.websocket.messages.find((m) => m.type === 'realtime_tick')!
-    ;(tick.skeleton as Json).payload = 'not-a-frame'
+    tick.validation = issue('payload', 'invalid_type')
     const report = checkCapture(bad)
     const by = Object.fromEntries(report.lines.map((l) => [l.id, l]))
     expect(report.ok).toBe(false)
@@ -110,6 +110,54 @@ describe('[S4][MODELLED] fmmi live capture / check', () => {
     const chk = await cli(home)('live', 'check', badFile)
     expect(chk.code).toBe(1)
     expect(chk.body!.data.ok).toBe(false)
+    await r.close()
+  }, 60_000)
+
+  it('the verdict is taken on the full raw response: an invalid THIRD array element passes on the cut skeleton (the old check) but fails the new one, with a path and types only', async () => {
+    const { replay } = await syntheticReplay()
+    const r = await rig(replay)
+    r.plugin.advance(60)
+    const good = (await (await fetch(`${r.plugin.url}/api/match/meta`)).json()) as Json
+    expect(good.players.length).toBeGreaterThan(3)
+    good.players[2].displayName = 'SECRET-NAME-VALUE'.length // a number where a string is required, in the third element only
+    r.plugin.faults.metaBody = good
+    const home = tmp('fmmi-cap-')
+    const res = await cli(home, r.plugin.boundPort)('live', 'capture', '--socket-seconds', '0')
+    const file = res.body!.data.file as string
+    const saved = JSON.parse(readFileSync(file, 'utf8')) as Capture
+    const m = saved.endpoints.find((e) => e.id === 'meta')!
+    // what the old check did: validate the sanitised skeleton (two elements) -> passes
+    expect(MetaSchema.safeParse(m.skeleton).success).toBe(true)
+    expect(m.validation).toMatchObject({ valid: false })
+    expect(m.validation!.issues[0]).toEqual({ path: 'players[].displayName', code: 'invalid_type', expected: 'string', received: 'number' })
+    expect(m.validation!.issues.length).toBeLessThanOrEqual(10)
+    const chk = await cli(home)('live', 'check', file)
+    expect(chk.code).toBe(1)
+    const line = (chk.body!.data.lines as Json[]).find((l) => l.id === 'meta')!
+    expect(line.verdict).toBe('schema_mismatch')
+    expect(line.detail).toMatch(/players\[\]\.displayName/)
+    expect(chk.body!.data.verifiesLivePath).toBe(false)
+    await r.close()
+  }, 60_000)
+
+  it('a capture file made before the full response was validated reports recapture needed and never verifies the live path', async () => {
+    const { replay } = await syntheticReplay()
+    const r = await rig(replay)
+    r.plugin.advance(150)
+    r.plugin.revealFormation(1)
+    const home = tmp('fmmi-cap-')
+    const timer = setInterval(() => { r.plugin.pushTick(); r.plugin.pushFormation(0) }, 60)
+    const res = await cli(home, r.plugin.boundPort)('live', 'capture', '--socket-seconds', '1')
+    clearInterval(timer)
+    const old = JSON.parse(readFileSync(res.body!.data.file as string, 'utf8')) as Capture
+    expect(checkCapture(old).verifiesLivePath).toBe(true) // control: the fresh capture does verify (for the model)
+    for (const e of old.endpoints) delete e.validation
+    for (const w of old.websocket.messages) delete w.validation
+    const report = checkCapture(old)
+    expect(report.verifiesLivePath).toBe(false)
+    expect(report.lines.filter((l) => l.verdict === 'recapture_needed').length).toBe(9 + 2 - 0)
+    expect(report.lines.find((l) => l.id === 'meta')!.detail).toMatch(/recapture needed/)
+    expect(report.summary).toMatch(/Recapture needed/)
     await r.close()
   }, 60_000)
 

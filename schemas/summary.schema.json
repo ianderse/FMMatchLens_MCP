@@ -533,6 +533,38 @@
                           "string",
                           "null"
                         ]
+                      },
+                      "onAtMinute": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "offAtMinute": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "identity": {
+                        "type": "string",
+                        "enum": [
+                          "match_local",
+                          "persistent",
+                          "linked"
+                        ]
+                      },
+                      "persistentPlayerId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "starts_with",
+                            "pattern": "^pe_.*"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "required": [
@@ -545,7 +577,11 @@
                       "enteredAs",
                       "minutes",
                       "onAt",
-                      "offAt"
+                      "offAt",
+                      "onAtMinute",
+                      "offAtMinute",
+                      "identity",
+                      "persistentPlayerId"
                     ],
                     "additionalProperties": false
                   }

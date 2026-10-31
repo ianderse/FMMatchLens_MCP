@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto'
 import { accessSync, constants, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, extname, join, resolve } from 'node:path'
 import {
-  DomainError, PROJECTION_VERSION, SUPPORTED_FORMAT, applyConfirmation, baseCompletion, boundName, deriveResult, parseScore, resolveDisplayMinute, toErrorBody,
+  DomainError, MATCH_LOCAL_IDENTITY, PROJECTION_VERSION, SUPPORTED_FORMAT, applyConfirmation, baseCompletion, boundName, deriveResult, gameClockFromPeriods, parseScore, resolveDisplayMinute, toErrorBody,
 } from '@fmmi/model'
-import type { DecodedRecording, ErrorBody, MatchCompletion, NormalizedRecording, Participant, ResultView, Side } from '@fmmi/model'
+import type { DecodedRecording, ErrorBody, MatchCompletion, NormalizedRecording, Participant, PeriodSpan, PlayerIdentityInfo, ResultView, Side } from '@fmmi/model'
 import { FmlensV28Decoder, PARSER_NAME, PARSER_VERSION, compareFramePrefix } from '@fmmi/fmlens-adapter'
 import type { PrefixComparison } from '@fmmi/fmlens-adapter'
 import type { ArchiveDecoder } from '@fmmi/fmlens-adapter'
@@ -321,6 +321,7 @@ export class CatalogService {
     const warnings = [...rec.warnings]
     if (completion.manualFinalScore?.differsFromObserved) warnings.push('manual_final_score_differs_from_observed: observed counters are unchanged')
     if (rev.identityStatus === 'identity_conflict') warnings.push('identity_conflict: this revision is excluded from default analysis')
+    const identities = this.playerIdentities(m.saveId)
     return {
       schemaVersion: rec.schemaVersion,
       matchId, saveId: m.saveId, saveName: save.displayName, upstreamMatchId: m.upstreamMatchId, season: m.season, matchDate: m.matchDate,
@@ -344,9 +345,9 @@ export class CatalogService {
               derivation: 'ratio_of_possession_time_counters', unitVerified: false }
           : { home: null, away: null, reason: 'zero_denominator' },
       },
-      roster: rec.roster.map((p) => this.participantView(rev.recordingRevisionId, p)),
+      roster: rec.roster.map((p) => this.participantView(rev.recordingRevisionId, p, identities, rec.periods)),
       substitutions: rec.substitutionBatches.map((b) => ({
-        side: b.side, period: b.period, tick: b.tick,
+        side: b.side, period: b.period, tick: b.tick, atMinute: gameClockFromPeriods(rec.periods, b.tick, b.period).minute, atLabel: gameClockFromPeriods(rec.periods, b.tick, b.period).label,
         off: b.off.map((id) => this.pid(rev.recordingRevisionId, id)), on: b.on.map((id) => this.pid(rev.recordingRevisionId, id)), pairing: b.pairing,
       })),
       events: rec.eventSummary,
@@ -357,13 +358,17 @@ export class CatalogService {
   }
 
   private pid(revId: string, upstreamId: number): string { return playerIdFor(revId, upstreamId) }
-  private participantView(revId: string, p: Participant) {
+  private participantView(revId: string, p: Participant, identities: ReadonlyMap<string, PlayerIdentityInfo>, periods: readonly PeriodSpan[]) {
+    const clock = (b: { tick: number; period?: number }) => { const c = gameClockFromPeriods(periods, b.tick, b.period); return { minute: c.minute, label: c.label } }
     return {
       playerId: this.pid(revId, p.upstreamPlayerId),
-      identity: 'match_local' as const,
+      ...(identities.get(this.pid(revId, p.upstreamPlayerId)) ?? MATCH_LOCAL_IDENTITY),
       upstream: { playerId: p.upstreamPlayerId, uid: p.uid, slot: p.slot },
       side: p.side, name: p.name, shirtNumber: p.shirtNumber, position: p.position,
-      participation: p.participation, roleTimeline: p.roleTimeline, nativeRating: p.nativeRating, counters: p.counters,
+      // Readable game minutes beside the canonical boundaries, from the period display clock (never tick / 240).
+      participation: { ...p.participation, firstOnGame: p.participation.firstOn ? clock(p.participation.firstOn) : null, lastOffGame: p.participation.lastOff ? clock(p.participation.lastOff) : null },
+      roleTimeline: p.roleTimeline.map((r) => ({ ...r, gameMinute: clock({ tick: r.capturedTick }).minute, gameLabel: clock({ tick: r.capturedTick }).label })),
+      nativeRating: p.nativeRating, counters: p.counters,
     }
   }
 
@@ -398,6 +403,8 @@ export class CatalogService {
     if (rev.identityStatus === 'identity_conflict') warnings.push('identity_conflict: this revision is excluded from default analysis')
     return {
       decoded, completion, result, warnings,
+      // Read from the catalog on every call, never from the decoded-recording cache: links and unlinks change it.
+      playerIdentities: this.identitiesByPlayerId(m.saveId, rev.recordingRevisionId, decoded.recording.roster),
       ids: {
         matchId, saveId: m.saveId, recordingRevisionId: rev.recordingRevisionId, teamIds: { home: m.homeTeamId, away: m.awayTeamId } as { home: string; away: string },
         playerIds: new Map(decoded.recording.roster.map((p) => [p.upstreamPlayerId, playerIdFor(rev.recordingRevisionId, p.upstreamPlayerId)] as const)),
@@ -533,6 +540,22 @@ export class CatalogService {
 
   // ------------------------------------------------------------------ Slice 4: save-scoped player identity
   listPlayerCatalog(saveId: string) { this.requireSave(saveId); return playerCatalog(this.store, saveId) }
+  /**
+   * Identity of every match-local player id (p_...) that belongs to a persistent or linked player of the save, read fresh from the catalog
+   * on every call. A p_ id that is not in the map is truly match-local. Read-only; nothing is cached here.
+   */
+  playerIdentities(saveId: string): Map<string, PlayerIdentityInfo> {
+    const out = new Map<string, PlayerIdentityInfo>()
+    for (const e of this.store.listEntities(saveId)) for (const m of e.members) out.set(m.localPlayerId, { identity: e.status, persistentPlayerId: e.playerId })
+    return out
+  }
+  /** The same map keyed by the internal player ids of one revision's roster, for the analytics input. */
+  private identitiesByPlayerId(saveId: string, revisionId: string, roster: readonly Participant[]): Map<string, PlayerIdentityInfo> {
+    const all = this.playerIdentities(saveId)
+    const out = new Map<string, PlayerIdentityInfo>()
+    for (const p of roster) { const id = playerIdFor(revisionId, p.upstreamPlayerId); const v = all.get(id); if (v) out.set(id, v) }
+    return out
+  }
   linkPlayers(saveId: string, ids: string[], opts: { name?: string } = {}) { this.requireSave(saveId); return linkPlayers(this.store, saveId, ids, new Date().toISOString(), opts) }
   unlinkPlayer(saveId: string, localPlayerId: string) { this.requireSave(saveId); return unlinkPlayer(this.store, saveId, localPlayerId, new Date().toISOString()) }
   rebuildIdentities(saveId: string) { this.requireSave(saveId); rebuildPlayerIdentities(this.store, saveId, new Date().toISOString()) }
