@@ -4,30 +4,72 @@ Target: Windows 10/11 x64, Node.js >= 22.18 (developed and tested on Node 25.1).
 network connection. Sections 9 to 11 (Slice 5: live reader, live note, optional remote MCP) are optional and OFF by default; read the
 status lines in them before relying on any of it.
 
-## 1. Install and verify
+## 1. Install, link and set up (the short way)
 
     npm install
+    npm link
+    fmmi setup
+
+That is the whole first run. `npm link` puts `fmmi` and `fmmi-mcp` on your `PATH` (open a new terminal afterwards). `fmmi setup` is guided and safe to run
+again; it needs no arguments, no ids and no copied paths:
+
+1. It finds the recordings folder (`...\Football Manager 27\BepInEx\plugins\FMMatchLens\data\matches`): the standard Steam locations first, then every
+   library listed in Steam's `steamapps\libraryfolders.vdf`. It shows what it found and asks. If it finds nothing it asks for the path; paste it with or
+   without quotes, even if the terminal wrapped it over several lines. You may also paste the game folder; setup descends to the recordings folder. It only
+   reads the game folder.
+2. It remembers the folder and a default save in `%LOCALAPPDATA%\fmmi\config.json` (flags and the `FMMI_ARCHIVE_DIR` / `FMMI_DEFAULT_SAVE` variables still win over the file).
+3. It reuses your save: exactly one existing save becomes the default (nothing is duplicated); with none it creates one named after the club you manage
+   (read from the recordings) or asks for a name; with several it asks which is the default.
+4. It imports every finished recording, sets your club with the existing detection, and asks for the final score of any *partial* recording (a full
+   recording already counts without a confirmation).
+5. It offers to register the MCP server with Claude Code at user scope, so the tools are available from every folder, using absolute paths and
+   `--live`. It runs the `claude` command with an argument array (no PowerShell is involved, so `--` and `--live` arrive intact). It shows an existing
+   entry that differs and replaces it only after you agree, and it finds a local-scope entry for this repository (which would override the user one) and
+   offers to remove it. If `claude` is not installed it prints a JSON block with your real paths to paste into your client's MCP configuration.
+   Start a new Claude Code session afterwards.
+
+For scripts and tests nothing is asked when you pass flags: `fmmi setup --yes --archive-dir "C:\...\data\matches" --save-name "Farnham Town" [--no-mcp]`.
+Without a terminal and without `--yes`, setup never guesses and says what to pass. Setup writes only under the catalog home, plus Claude's own settings
+through the `claude` command; it never modifies the game folder or a recording.
+
+**After a match** you do not need a command. With the MCP server registered, Claude imports new recordings by itself before it answers (section 3). Without
+an MCP client, or to correct a final score, run `fmmi sync`: it imports new recordings (it skips the `match-<digits>.fmlens` file the game is still writing;
+`--include-in-progress` imports it as a partial) and asks about the recordings that need a confirmation. `fmmi` on its own shows what is new.
+
+Without `npm link` every command also runs as `npm run fmmi -- <arguments>` from the repository folder.
+
+Developing:
+
     npm run typecheck && npm run lint && npm test
 
-Real recordings for the optional real-recording tests go in `tests/fixtures/local/` (gitignored); those tests skip when absent.
+Real recordings for the optional real-recording tests go in `tests/fixtures/local/` (gitignored); those tests skip when absent. No test touches your real
+catalog, game folder or `~/.claude.json`.
 
-## 2. Import recordings (CLI only)
+Windows is the tested platform. Nothing here has been run on macOS or Linux.
 
-The MCP server is read-only. Everything that changes the catalog (importing, `match confirm`, `match move`,
-`recording resolve`) stays in the `fmmi` CLI.
+## 2. Day-to-day use of the CLI
 
-    npm run fmmi -- save create "Farnham Town"
-    npm run fmmi -- ingest "C:\path\to\match.fmlens" --save <saveId>
-    npm run fmmi -- list --save <saveId>
+    fmmi                         # home screen
+    fmmi report                  # the latest match (or: fmmi report hemel, fmmi report latest)
+    fmmi player latest alexander
+    fmmi trends
+    fmmi match confirm latest --score 2-1
 
-The catalog lives under `FMMI_HOME` (default `%LOCALAPPDATA%\fmmi`): `catalog.sqlite` and content-addressed read-only
-`snapshots\`. Use a separate `FMMI_HOME` for experiments so your real catalog is never touched.
+`--save` is optional (the default save, else the only save; a save name works too). A match reference is `latest`, an exact id or a team-name fragment;
+a player reference is a `p_` id, a `pe_` id or a name fragment. An ambiguous reference lists the candidates instead of guessing. The long forms with ids
+still work. Manual steps (`fmmi save create`, `fmmi ingest <file-or-dir>`, `fmmi ingest --new`) remain for scripts; `ingest --new` includes a recording
+that is still in progress, `fmmi sync` does not.
 
-## 3. Run the MCP server
+The catalog lives under `FMMI_HOME` (default `%LOCALAPPDATA%\fmmi`): `catalog.sqlite`, content-addressed read-only `snapshots\` and `config.json`. Use a
+separate `FMMI_HOME` for experiments so your real catalog is never touched.
 
-    node packages\mcp\bin\fmmi-mcp.mjs [--home <dir>]        # or: npm run --silent fmmi-mcp
+## 3. The MCP server
 
-Launch it with `node` directly (or `npm run --silent`) in client configurations: plain `npm run` prints a banner on stdout, which
+`fmmi setup` registers it. By hand, in a client that takes an `mcpServers` block (see below), or `fmmi-mcp` / `node packages\mcp\bin\fmmi-mcp.mjs [--home <dir>] [--live]`
+(or `npm run --silent fmmi-mcp`). In PowerShell, `claude mcp add ... -- node ... --live` loses the `--` and fails with "unknown option '--live'"; use
+`fmmi setup`, or the JSON block below.
+
+Launch it with `node` directly (or `fmmi-mcp`, or `npm run --silent`) in client configurations: plain `npm run` prints a banner on stdout, which
 would corrupt the protocol channel.
 
 The server speaks MCP over stdio (SDK v2, `@modelcontextprotocol/server` 2.4.0). stdout carries the protocol and nothing
@@ -35,23 +77,33 @@ else; diagnostics are JSON lines on stderr (tool name, internal ids, byte counts
 raw frames). It opens the catalog read-only and on first use, so it may be started before the first import and picks the
 catalog up once it exists. It exits when the client closes stdin.
 
+**Automatic import (a deliberate deviation from the read-only spec).** The stdio server imports finished new recordings from the configured folder into
+the configured default save: once at startup and before a catalog-reading call, at most every 30 seconds. The folder and the save come only from the
+operator's configuration (`config.json`, `FMMI_ARCHIVE_DIR`, `FMMI_DEFAULT_SAVE`); no tool argument can influence them, and a server with no configured
+folder and default save does nothing and creates nothing. The no-change case compares a directory listing (name, size, modification time) with what it
+already handled: no hashing and no catalog write. It skips `match-<digits>.fmlens`. The import runs on its own short-lived writer connection; if the
+catalog is busy (a CLI import at the same moment) that round is skipped and retried later. A failure never fails or blocks the call: it is logged by
+category on stderr and a short warning is added to the result. What was imported is reported as `newlyImported` on `list_matches` and
+`get_recording_status` (and as a warning line on other tools). A pinned `recordingRevisionId` keeps returning the same evidence. `--no-auto-import`
+turns it off; `--http` never imports. The code is in `packages/store/src/autoImport.ts` and is injected by the entry point, so `packages/mcp` itself
+imports no file API.
+
 ### Client configuration (stdio)
 
-Most MCP clients accept the common `mcpServers` shape. Replace the paths with your own:
+Most MCP clients accept the common `mcpServers` shape. `fmmi setup` prints this block with your real paths when it cannot register the server itself:
 
 ```json
 {
   "mcpServers": {
     "fmmi": {
-      "command": "node",
-      "args": ["C:\\Users\\you\\Documents\\Projects\\FMMatchLens_MCP\\packages\\mcp\\bin\\fmmi-mcp.mjs"],
-      "env": { "FMMI_HOME": "C:\\Users\\you\\AppData\\Local\\fmmi" }
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": ["C:\\Users\\you\\Documents\\Projects\\FMMatchLens_MCP\\packages\\mcp\\bin\\fmmi-mcp.mjs", "--live"]
     }
   }
 }
 ```
 
-`command` must resolve to a Node >= 22.18 executable (use its full path if `node` on `PATH` is older). The server was verified
+`command` must resolve to a Node >= 22.18 executable (the full path, as setup writes it, avoids an older `node` on `PATH`). Add `"--home", "<dir>"` to `args` only for a catalog outside the default. The server was verified
 here only with the official SDK v2 client over stdio (`tests/mcp/stdio.test.ts`). No other client, including OMP, has been
 tried; client-specific key names are the client's own documentation, not this repository's.
 
@@ -125,16 +177,22 @@ No real model transcript is included in this repository: the samples in `tests/m
 
 ## 7. Security notes
 
-- The server has no tool that takes a path, URL or command, never accepts an archive path, and rejects unknown input keys.
-- The catalog is opened with SQLite `readonly` and `query_only`; the tests assert that the catalog and snapshot bytes are
-  unchanged after calling every tool, and that a missing catalog is not created.
+- The server has no tool that takes a path, URL or command, never accepts an archive path, and rejects unknown input keys. Its one write path, the
+  automatic import in section 3, is not a tool: it reads the operator's configuration only, never writes anything but the catalog and its snapshots, and
+  is off for `--http` and with `--no-auto-import`.
+- The tool connection opens the catalog with SQLite `readonly` and `query_only`; the tests assert that the catalog and snapshot bytes are
+  unchanged after calling every tool (with the importer off or nothing new to import), and that a missing catalog is not created.
 - Player, club and competition names are untrusted data and are returned only as JSON fields.
 - If the client sends tool results to an online model, match data leaves this PC; that is a decision for the client.
 - Keep the FMMatchLens port 16726 on loopback. The stdio server does not use it; only the optional `--live` flag (section 9) reads it, and only from 127.0.0.1.
 
 ## 8. Troubleshooting
 
-- `not_found` with `details.reason = "catalog_missing"`: nothing imported under that `FMMI_HOME` yet.
+- `fmmi` says it is not set up, or "No save exists yet": run `fmmi setup`.
+- "The recordings folder does not exist": the folder moved or the game was reinstalled; run `fmmi setup` again (it asks, it does not need the old value).
+- `not_found` with `details.reason = "catalog_missing"`: nothing imported under that `FMMI_HOME` yet (run `fmmi setup`).
+- Claude Code does not show the tools: start a new session, run `/mcp`, and check `claude mcp get fmmi` from another folder. A local-scope entry for the
+  repository folder overrides the user one there; `fmmi setup` offers to remove it.
 - `unsupported_version` on start of a tool call: the catalog was created by a different build; run any `fmmi` command once.
 - `revision_unavailable`: the pinned revision does not belong to that match, or its retained snapshot cannot be read.
 - Node errors about `.ts` files: use Node >= 22.18.
@@ -157,9 +215,9 @@ At real half-time the plugin gave NO break signal: `/api/health` kept saying `in
 open. The reader therefore has a fifth state, `held` (see below). All live tests run against a test-only fake plugin (modelled), which now
 also pauses, serves null assignments for substitutes and answers `lastTick`.
 
-    npm run fmmi -- live status                 # is the plugin reachable, is a match running (uses /api/health only)
-    npm run fmmi -- live capture                # run DURING a real match (ideally once in each half)
-    npm run fmmi -- live check                  # reports the validation (made at capture time) of each full response
+    fmmi live status                 # is the plugin reachable, is a match running (uses /api/health only)
+    fmmi live capture                # run DURING a real match (ideally once in each half)
+    fmmi live check                  # reports the validation (made at capture time) of each full response
 
 `live capture` asks each route once, listens on the socket for up to 10 s (`--socket-seconds n`, `0` to skip) and writes a sanitised
 skeleton (structure and types; free text replaced, ids zeroed, arrays cut to two elements) and, for every route and every sampled
@@ -200,8 +258,8 @@ Live ids (`lv_`, `lr_`, `lt_`, `p_`) are valid only for the running match; they 
 
 Live note (CLI only; the MCP server only reads them):
 
-    npm run fmmi -- note add --live --save <saveId> --setting Mentality --prior-value Balanced --new-value Positive [--boundary 2:13100] [--text "..."]
-    npm run fmmi -- note compare ln_<id>        # before and since windows on the live snapshot; observational
+    fmmi note add --live --setting Mentality --prior-value Balanced --new-value Positive [--boundary 2:13100] [--text "..."]
+    fmmi note compare ln_0123456789abcdef        # (the id the note add printed) before and since windows on the live snapshot; observational
 
 The note is pinned to the live snapshot boundary the CLI read from the plugin (its period, tick and game minute), or to an earlier
 boundary you name with `--boundary`; it is manual, immutable and audited. When the finished recording is imported into the same save
@@ -210,18 +268,18 @@ it becomes a regular tactical note of that match, once.
 Recording continuations (Slice 5, offline): if a recording of a known source match arrives that holds every earlier frame unchanged
 and more (a finished file after an in-progress copy), it becomes the selected revision automatically and the earlier revision stays
 inspectable and pinnable. A recording that differs anywhere in the earlier prefix is never merged: it is kept as `identity_conflict`
-with the reason. `fmmi recording resolve <revisionId> --as continuation` (verified again from the frames) or `--as alternate` (your
+with the reason. `fmmi recording resolve <the recording revision id from fmmi show> --as continuation` (verified again from the frames) or `--as alternate` (your
 choice of a different recording) settle a conflict; `separate-occurrence` and `ignored` are unchanged. Confirmations and tactical
 notes belong to the revision they were made on.
 
 ## 10. Remote MCP over Streamable HTTP (Slice 5, optional): UNVERIFIED beyond loopback
 
-Off unless you start it: `node packages\mcp\bin\fmmi-mcp.mjs --http`. Verified only on loopback, in this repository's tests, with the
+Off unless you start it: `fmmi-mcp --http`. Verified only on loopback, in this repository's tests, with the
 official SDK v2 client. Never run on a real network, Tailscale or a Mac.
 
-    node packages\mcp\bin\fmmi-mcp.mjs --print-new-token      # prints a fresh random token; keep it in the environment, not in a file in the repo
-    set FMMI_MCP_TOKEN=<token>
-    node packages\mcp\bin\fmmi-mcp.mjs --http --home <dir> [--port 8787] [--live]
+    fmmi-mcp --print-new-token      # prints a fresh random token; keep it in the environment, not in a file in the repo
+    set FMMI_MCP_TOKEN=the-token-printed-above
+    fmmi-mcp --http [--port 8787] [--live]
 
 It serves the same read-only tools at `POST /mcp` only. A bearer token (at least 24 characters, from the variable named by
 `--token-env`, default `FMMI_MCP_TOKEN`) is required on EVERY request, also on loopback; it is compared in constant time and is never

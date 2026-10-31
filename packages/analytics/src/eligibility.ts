@@ -18,14 +18,14 @@ export interface EligibilityFacts {
 }
 
 export type MatchClass = 'full_match' | 'early_ending' | 'partial_recording' | 'not_applicable'
-export type RecordBasis = 'manual' | 'observed_final'
+export type RecordBasis = 'manual' | 'observed_final' | 'observed'
 
 export interface Eligibility {
   /** Counts toward season RATES (measured-minute denominators). */
   rates: boolean
   /** Counts toward season TOTALS: observed counters over a full-match capture only. */
   totals: boolean
-  /** Win/draw/loss source: the manual final score (labelled manual) or a verified final score; null when no final score is known. */
+  /** Win/draw/loss source: the manual final score (labelled manual), a verified final score, or the observed score of an unconfirmed full-match capture (labelled observed); null when no score is usable. */
   record: RecordBasis | null
   matchClass: MatchClass
   /** Why the match is out of the default (rates) set. Empty when `rates` is true. */
@@ -44,11 +44,15 @@ const EARLY_ENDING_REASONS: readonly string[] = ['recording_ends_before_regulati
 export function seasonEligibility(f: EligibilityFacts): Eligibility {
   const out: Eligibility = { rates: false, totals: false, record: null, matchClass: 'not_applicable', reasons: [], disclosures: [], partialOptIn: false, totalsExcludedBecause: [] }
   if (f.identityStatus !== 'ok' && f.identityStatus !== 'separate_occurrence') out.reasons.push('identity_conflict_unresolved')
-  if (f.completion === 'unknown' || f.completion === 'in_progress') out.reasons.push(f.completion === 'unknown' ? 'completion_unknown' : 'completion_in_progress')
+  const full = f.coverage.status === 'full_match'
+  // A full-match capture (clean close, zero baseline, no gap over the tolerance, last frame at or after regulation end) counts without a
+  // confirmation step. The source has no verified full-time signal, so completion stays `unknown` and the score stays observed, not final.
+  const fullUnconfirmed = f.completion === 'unknown' && full
+  if (f.completion === 'in_progress') out.reasons.push('completion_in_progress')
+  else if (f.completion === 'unknown' && !fullUnconfirmed) out.reasons.push('completion_unknown')
   if (f.matchDate === null) out.reasons.push('match_date_unavailable')
 
   const completed = f.completion === 'completed' || f.completion === 'completed_manual'
-  const full = f.coverage.status === 'full_match'
   if (!full) {
     const reasons = f.coverage.reasons
     const earlyOnly = reasons.length > 0 && reasons.every((r) => EARLY_ENDING_REASONS.includes(r)) && f.coverage.endCaptureEndsAt !== null && f.coverage.initialBaseline === 'zero_verified'
@@ -68,7 +72,8 @@ export function seasonEligibility(f: EligibilityFacts): Eligibility {
   }
 
   out.rates = true
-  out.record = completed ? (f.completion === 'completed_manual' ? 'manual' : 'observed_final') : null
+  out.record = completed ? (f.completion === 'completed_manual' ? 'manual' : 'observed_final') : fullUnconfirmed ? 'observed' : null
+  if (fullUnconfirmed) out.disclosures.push('full_capture_unconfirmed')
   if (f.completion === 'completed_manual') out.disclosures.push('manual_confirmation')
   if (f.manualFinalScore?.differsFromObserved) out.disclosures.push('manual_final_score_differs_from_observed')
   if (out.matchClass === 'early_ending') {

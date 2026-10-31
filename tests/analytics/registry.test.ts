@@ -10,7 +10,7 @@ const ROOT = join(import.meta.dirname, '..', '..')
 
 describe('versioned metric definition registry (spec 7.7)', () => {
   it('every definition has an ID, an integer version, a unit, a formula, eligibility, null reasons, a scope, rounding and a tolerance', () => {
-    expect(METRIC_DICTIONARY_VERSION).toBe('1.2')
+    expect(METRIC_DICTIONARY_VERSION).toBe('1.3')
     const ids = METRIC_REGISTRY.map((d) => d.id)
     expect(new Set(ids).size).toBe(ids.length)
     for (const d of METRIC_REGISTRY) {

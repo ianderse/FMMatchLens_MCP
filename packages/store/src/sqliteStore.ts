@@ -132,7 +132,7 @@ export class SqliteCatalogStore implements CatalogStore {
    * `readOnly` opens an existing catalog without creating, migrating or writing anything (the MCP server). A catalog
    * whose schema is not the one this build expects is refused, never upgraded.
    */
-  constructor(path: string, opts: { readOnly?: boolean } = {}) {
+  constructor(path: string, opts: { readOnly?: boolean; busyTimeoutMs?: number } = {}) {
     if (opts.readOnly) {
       if (!existsSync(path)) throw new DomainError('not_found', 'No catalog exists at the configured home; import a recording with the fmmi CLI first', { reason: 'catalog_missing' })
       this.db = new Database(path, { readonly: true, fileMustExist: true })
@@ -145,7 +145,7 @@ export class SqliteCatalogStore implements CatalogStore {
       }
       return
     }
-    this.db = new Database(path)
+    this.db = opts.busyTimeoutMs !== undefined ? new Database(path, { timeout: opts.busyTimeoutMs }) : new Database(path)
     this.db.pragma('journal_mode = WAL')
     this.db.pragma('foreign_keys = ON')
     this.migrate()

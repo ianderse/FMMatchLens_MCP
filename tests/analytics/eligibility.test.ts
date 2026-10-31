@@ -31,9 +31,23 @@ describe('Slice 4 eligibility policy: one function for every season query', () =
     expect(seasonEligibility({ ...full, completion: 'completed', manualFinalScore: null })).toMatchObject({ rates: true, totals: true, record: 'observed_final', disclosures: [] })
   })
 
-  it('unknown and in-progress completion are excluded with a reason, however complete the capture is', () => {
-    expect(seasonEligibility({ ...full, completion: 'unknown', manualFinalScore: null })).toMatchObject({ rates: false, totals: false, reasons: ['completion_unknown'], partialOptIn: false })
+  it('a full-match capture counts without a confirmation: eligible, disclosed as full_capture_unconfirmed, with an observed (not final, not manual) record', () => {
+    const e = seasonEligibility({ ...full, completion: 'unknown', manualFinalScore: null })
+    expect(e).toMatchObject({ rates: true, totals: true, record: 'observed', matchClass: 'full_match', reasons: [], partialOptIn: false })
+    expect(e.disclosures).toEqual(['full_capture_unconfirmed'])
+  })
+
+  it('a manual confirmation takes precedence over the unconfirmed basis: manual record, manual disclosure, and a corrected score is disclosed', () => {
+    const e = seasonEligibility({ ...full, completion: 'completed_manual', manualFinalScore: { home: 2, away: 1, differsFromObserved: true } })
+    expect(e).toMatchObject({ rates: true, record: 'manual' })
+    expect(e.disclosures).toEqual(['manual_confirmation', 'manual_final_score_differs_from_observed'])
+  })
+
+  it('in-progress completion is excluded with a reason, however complete the capture is; an unconfirmed partial recording stays excluded until confirmed', () => {
     expect(seasonEligibility({ ...full, completion: 'in_progress', manualFinalScore: null }).reasons).toEqual(['completion_in_progress'])
+    const partial = seasonEligibility({ ...early(87.6), completion: 'unknown', manualFinalScore: null })
+    expect(partial).toMatchObject({ rates: false, totals: false, partialOptIn: true })
+    expect(partial.reasons).toEqual(['completion_unknown'])
   })
 
   it('an unresolved identity conflict is excluded and is never offered by the partial opt-in', () => {
@@ -79,11 +93,14 @@ describe('Slice 4 eligibility policy: one function for every season query', () =
 })
 
 describe('Slice 4 dictionary version and history', () => {
-  it('the dictionary is 1.2 and the version history in docs/metrics.md names 1.0, 1.1 and 1.2', () => {
-    expect(METRIC_DICTIONARY_VERSION).toBe('1.2')
-    expect(METRIC_DICTIONARY_HISTORY.map((h) => h.version)).toEqual(['1.0', '1.1', '1.2'])
+  it('the dictionary is 1.3 and the version history in docs/metrics.md names 1.0, 1.1, 1.2 and 1.3', () => {
+    expect(METRIC_DICTIONARY_VERSION).toBe('1.3')
+    expect(METRIC_DICTIONARY_HISTORY.map((h) => h.version)).toEqual(['1.0', '1.1', '1.2', '1.3'])
+    expect(SEASON_POLICY.version).toBe(2)
+    expect(METRIC_DICTIONARY_HISTORY[3]!.changed).toEqual(['season_eligibility (policy v1 -> v2)'])
     const doc = renderMetricsDoc()
     expect(doc).toContain('## Version history')
+    expect(doc).toMatch(/\| 1\.3 \| 2026-10-31 \|/)
     expect(doc).toMatch(/\| 1\.2 \| 2026-10-30 \|/)
     expect(doc).toMatch(/\| 1\.1 \| 2026-10-30 \|/)
     expect(doc).toMatch(/\| 1\.0 \| 2026-10-30 \|/)

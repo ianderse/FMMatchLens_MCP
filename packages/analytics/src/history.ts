@@ -224,7 +224,7 @@ export const SeasonTrendsResultSchema = z.looseObject({
   team: z.looseObject({ teamId: z.string(), name: z.string(), aliases: z.array(z.string()) }),
   eligibleMatches: z.number().int(),
   matches: z.array(Summary),
-  excluded: z.array(z.strictObject({ matchId: z.string(), date: z.string().nullable(), reasons: z.array(z.string()) })),
+  excluded: z.array(z.strictObject({ matchId: z.string(), date: z.string().nullable(), reasons: z.array(z.string()), nextStep: z.string().optional() })),
   windows: z.array(z.looseObject({
     lastN: z.number().int(), matchIds: z.array(z.string()), rates: z.array(Row), wing: WingSchema.optional(),
     record: z.looseObject({ matches: z.number().int(), won: z.number().int(), drawn: z.number().int(), lost: z.number().int() }),

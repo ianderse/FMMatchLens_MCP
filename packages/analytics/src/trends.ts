@@ -239,7 +239,7 @@ export interface TrendMatchSummary {
   /** Present only for an early-ending capture; absent means a full-match capture. */
   class?: 'early_ending'
   capturedMinutes: number
-  score: { for: number; against: number; basis: 'manual' | 'observed_final'; outcome: 'win' | 'draw' | 'loss' } | null
+  score: { for: number; against: number; basis: 'manual' | 'observed_final' | 'observed'; outcome: 'win' | 'draw' | 'loss' } | null
   disclosures: string[]
 }
 
@@ -261,10 +261,10 @@ function recordOf(entries: ReadonlyArray<{ s: TrendMatchSummary }>) {
   const scored = entries.filter((x) => x.s.score !== null)
   const sum = (f: (s: NonNullable<TrendMatchSummary['score']>) => number) => scored.reduce((a, x) => a + f(x.s.score!), 0)
   return {
-    basis: 'manual final score (labelled manual) or verified final score; observed counters are never replaced by it',
+    basis: 'manual final score (labelled manual), verified final score, or the observed score of an unconfirmed full-match capture (labelled observed, not final); observed counters are never replaced by it',
     matches: scored.length, won: scored.filter((x) => x.s.score!.outcome === 'win').length, drawn: scored.filter((x) => x.s.score!.outcome === 'draw').length,
     lost: scored.filter((x) => x.s.score!.outcome === 'loss').length,
-    manualScores: scored.filter((x) => x.s.score!.basis === 'manual').length, goalsForPerScore: sum((s) => s.for), goalsAgainstPerScore: sum((s) => s.against),
+    manualScores: scored.filter((x) => x.s.score!.basis === 'manual').length, observedScores: scored.filter((x) => x.s.score!.basis === 'observed').length, goalsForPerScore: sum((s) => s.for), goalsAgainstPerScore: sum((s) => s.against),
     withoutFinalScore: entries.length - scored.length,
   }
 }
@@ -314,7 +314,9 @@ function totalsOf(items: ReadonlyArray<{ m: TrendMatchInput; e: Eligibility }>):
 export interface CompactRow { metric: string; value: number | null; nullReason?: NullReason }
 const compact = (r: TrendRow): CompactRow => ({ metric: r.metric, value: r.value, ...(r.nullReason ? { nullReason: r.nullReason } : {}) })
 
-export interface ExcludedMatch { matchId: string; date: string | null; reasons: string[] }
+/** `nextStep` is set when the match waits for a confirmation: `fmmi sync` shows it and records the user's final score. */
+export interface ExcludedMatch { matchId: string; date: string | null; reasons: string[]; nextStep?: string }
+export const CONFIRM_NEXT_STEP = 'fmmi sync'
 
 export interface SeasonTrendsCore {
   policy: { id: string; version: number; earlyEndingMinCapturedMinutes: number; earlyEndingLabel: string; documented: string }
@@ -328,7 +330,7 @@ export interface SeasonTrendsCore {
     /** Set when this window holds exactly the matches of a smaller window (fewer eligible matches exist): nothing else is repeated. */
     sameMatchesAsWindow?: number
     matchIds: string[]
-    disclosures: { manualConfirmation: string[]; earlyEnding: string[]; manualFinalScoreDiffersFromObserved: string[] }
+    disclosures: { manualConfirmation: string[]; earlyEnding: string[]; manualFinalScoreDiffersFromObserved: string[]; fullCaptureUnconfirmed: string[] }
     record: ReturnType<typeof recordOf>
     totals: SeasonTotals
     rates: TrendRow[]
@@ -343,7 +345,7 @@ export interface SeasonTrendOptions { lastN: readonly number[]; homeAway?: Side;
 export function seasonTrends(all: readonly TrendMatchInput[], o: SeasonTrendOptions): SeasonTrendsCore {
   const evaluated = all.map((m) => ({ m, e: eligibilityOf(m) }))
   const included = evaluated.filter((x) => x.e.rates && (o.homeAway === undefined || x.m.side === o.homeAway)).sort((a, b) => byGameOrder(a.m, b.m))
-  const excluded: ExcludedMatch[] = evaluated.filter((x) => !x.e.rates).sort((a, b) => byGameOrder(a.m, b.m)).map((x) => ({ matchId: x.m.matchId, date: x.m.date, reasons: x.e.reasons }))
+  const excluded: ExcludedMatch[] = evaluated.filter((x) => !x.e.rates).sort((a, b) => byGameOrder(a.m, b.m)).map((x) => ({ matchId: x.m.matchId, date: x.m.date, reasons: x.e.reasons, ...(x.e.reasons.includes('completion_unknown') ? { nextStep: CONFIRM_NEXT_STEP } : {}) }))
   const excludedRecordings = all.flatMap((m) => m.conflictingRevisionIds.map((r) => ({ matchId: m.matchId, recordingRevisionId: r, reason: 'identity_conflict' as const })))
   const used = new Map<string, TrendMatchSummary>()
   const windows: SeasonTrendsCore['windows'] = []
@@ -357,7 +359,7 @@ export function seasonTrends(all: readonly TrendMatchInput[], o: SeasonTrendOpti
     const ids = (d: string) => win.filter((x) => x.e.disclosures.includes(d)).map((x) => x.m.matchId)
     const w: SeasonTrendsCore['windows'][number] = {
       lastN: n, matchIds,
-      disclosures: { manualConfirmation: ids('manual_confirmation'), earlyEnding: ids('early_ending'), manualFinalScoreDiffersFromObserved: ids('manual_final_score_differs_from_observed') },
+      disclosures: { manualConfirmation: ids('manual_confirmation'), earlyEnding: ids('early_ending'), manualFinalScoreDiffersFromObserved: ids('manual_final_score_differs_from_observed'), fullCaptureUnconfirmed: ids('full_capture_unconfirmed') },
       record: recordOf(summaries.map((x) => ({ s: x.s }))), totals: totalsOf(win.map((x) => ({ m: x.m, e: x.e }))), rates: pooledTeamRows(win.map((x) => x.m), o.metrics),
       wing: wingTrend(win.map((x) => x.m)),
     }
@@ -458,7 +460,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 export function playerTrends(all: readonly PlayerMatchInput[], o: { lastN: readonly number[]; homeAway?: Side; metrics: readonly string[] }): PlayerTrendsCore {
   const evaluated = all.map((m) => ({ m, e: eligibilityOf(m) }))
   const included = evaluated.filter((x) => x.e.rates && (o.homeAway === undefined || x.m.side === o.homeAway)).sort((a, b) => byGameOrder(a.m, b.m))
-  const excluded = evaluated.filter((x) => !x.e.rates).sort((a, b) => byGameOrder(a.m, b.m)).map((x) => ({ matchId: x.m.matchId, date: x.m.date, reasons: x.e.reasons }))
+  const excluded = evaluated.filter((x) => !x.e.rates).sort((a, b) => byGameOrder(a.m, b.m)).map((x) => ({ matchId: x.m.matchId, date: x.m.date, reasons: x.e.reasons, ...(x.e.reasons.includes('completion_unknown') ? { nextStep: CONFIRM_NEXT_STEP } : {}) }))
   const used = new Map<string, PlayerMatchSummary>()
   const windows: PlayerWindow[] = []
   for (const n of o.lastN) {

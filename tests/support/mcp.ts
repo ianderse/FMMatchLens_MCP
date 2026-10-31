@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { Client } from '@modelcontextprotocol/client'
 import { InMemoryTransport } from '@modelcontextprotocol/server'
 import { CatalogHolder, createMcpServer } from '@fmmi/mcp'
+import type { ServerOptions } from '@fmmi/mcp'
 import type { DecodedCacheOptions } from '@fmmi/query'
 import { CatalogService, loadConfig } from '@fmmi/store'
 import { buildSyntheticArchive } from './syntheticArchive.ts'
@@ -73,9 +74,9 @@ export interface Connected {
   close: () => Promise<void>
 }
 
-export async function connect(home: string, cache?: DecodedCacheOptions): Promise<Connected> {
+export async function connect(home: string, cache?: DecodedCacheOptions, options: ServerOptions = {}): Promise<Connected> {
   const holder = new CatalogHolder(home, {}, cache)
-  const server = createMcpServer(holder.get)
+  const server = createMcpServer(holder.get, undefined, undefined, undefined, options)
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
   await server.connect(serverSide)
   const client = new Client({ name: 'fmmi-test-client', version: '0.0.0' })

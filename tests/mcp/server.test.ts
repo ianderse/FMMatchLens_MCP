@@ -93,7 +93,7 @@ describe('Slice 3 MCP server (synthetic recording, real SDK v2 client)', () => {
     }
     expect((await c.call('get_recording_status')).data.scope).toBe('catalog')
     // Section 6.4 envelope on the summary: shared fields once, then rows that only say what differs.
-    expect(summary.data).toMatchObject({ schemaVersion: '1.0', matchId: seed.matchId, saveId: seed.saveId, recordingRevisionId: seed.revisionId, metricDictionaryVersion: '1.2' })
+    expect(summary.data).toMatchObject({ schemaVersion: '1.0', matchId: seed.matchId, saveId: seed.saveId, recordingRevisionId: seed.revisionId, metricDictionaryVersion: '1.3' })
     expect(summary.data.source).toMatchObject({ kind: 'fmlens_archive', format: '2.8' })
     expect(summary.data.metrics.xg).toMatchObject({ version: 1, unit: 'xg' })
     expect(Array.isArray(summary.data.warnings)).toBe(true)

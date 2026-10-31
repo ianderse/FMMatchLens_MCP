@@ -20,10 +20,10 @@ describe('get_opposition_threat over MCP (synthetic)', () => {
     const schema = t.inputSchema as { additionalProperties?: unknown; properties: Record<string, unknown>; required?: string[] }
     expect(schema.additionalProperties).toBe(false)
     expect(Object.keys(schema.properties).sort()).toEqual(['matchId', 'recordingRevisionId', 'teamId', 'window'])
-    expect(schema.required?.sort()).toEqual(['matchId', 'teamId'])
+    expect(schema.required?.sort()).toEqual(['matchId']) // teamId defaults to the managed team
     const r = await c.call('get_opposition_threat', { matchId: seed.matchId, teamId: seed.awayTeamId, recordingRevisionId: seed.revisionId })
     expect(r.isError).toBe(false)
-    expect(r.data).toMatchObject({ schemaVersion: '1.0', query: 'threat', matchId: seed.matchId, saveId: seed.saveId, recordingRevisionId: seed.revisionId, metricDictionaryVersion: '1.2' })
+    expect(r.data).toMatchObject({ schemaVersion: '1.0', query: 'threat', matchId: seed.matchId, saveId: seed.saveId, recordingRevisionId: seed.revisionId, metricDictionaryVersion: '1.3' })
     expect(r.data.source).toMatchObject({ kind: 'fmlens_archive', format: '2.8' })
     expect(r.data.metrics.attack_lane).toMatchObject({ version: 1 })
     expect(r.data.metrics.defender_clearances).toMatchObject({ version: 1 })

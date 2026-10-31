@@ -52,7 +52,11 @@ export const ListDataSchema = z.object({
     managedSide: z.enum(['home', 'away']).nullable(), result: ResultSchema, selectedRecordingRevisionId: z.string(), status: StatusSchema,
     format: z.string(), conflictingRevisions: z.number().int(),
     managedTeamId: z.string().nullable(), opponent: z.object({ teamId: z.string(), name: z.string() }).nullable(),
+    /** True for a partial recording that waits for the user's confirmation; `nextStep` is then the command. A full-match capture needs none. */
+    needsConfirmation: z.boolean().optional(), nextStep: z.string().optional(),
   })),
+  /** MCP only: recordings the server imported automatically before answering (see the fmmi-mcp instructions). */
+  newlyImported: z.array(z.looseObject({ file: z.string() })).optional(), warnings: z.array(z.string()).optional(),
 })
 
 const ParticipantSchema = z.object({

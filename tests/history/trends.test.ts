@@ -115,10 +115,10 @@ describe('Slice 4: five-match review, contributing matches and reconciliation', 
 })
 
 describe('Slice 4: default eligibility, disclosure and exclusion', () => {
-  it('AC2 default trends disclose completed_manual matches and exclude unknown-completion, partial and conflicting recordings with reasons', async () => {
+  it('AC2 default trends disclose completed_manual and unconfirmed full-capture matches and exclude partial and conflicting recordings with reasons', async () => {
     const specs: SeasonMatch[] = [
       { key: 'a1', date: '2026-08-01', side: 'home', opponent: 'Alpha FC', goals: [{ tick: 5000, side: 'home' }] },
-      { key: 'a2', date: '2026-08-08', side: 'away', opponent: 'Bravo FC' }, // never confirmed
+      { key: 'a2', date: '2026-08-08', side: 'away', opponent: 'Bravo FC' }, // never confirmed, but a full-match capture: it counts, disclosed as unconfirmed
       { key: 'a3', date: '2026-08-15', side: 'home', opponent: 'Charlie FC', periods: periodsOf(15600) }, // ends at 65 minutes
       { key: 'a5', date: '2026-08-22', side: 'away', opponent: 'Delta FC', goals: [{ tick: 9000, side: 'away' }] },
       { key: 'a6', date: '2026-08-29', side: 'home', opponent: 'Echo FC', periods: periodsOf(19938) }, // ends at 83.08 minutes
@@ -129,12 +129,14 @@ describe('Slice 4: default eligibility, disclosure and exclusion', () => {
     expect(conflict.status).toBe('identity_conflict')
 
     const r = await t.q.seasonTrends({ saveId: t.saveId, teamId: t.teamId, lastN: 5 })
-    expect(r.windows[0]!.matchIds).toEqual(['a1', 'a5', 'a6'].map((k) => t.ids[k]!.matchId))
+    expect(r.windows[0]!.matchIds).toEqual(['a1', 'a2', 'a5', 'a6'].map((k) => t.ids[k]!.matchId))
     const why = (k: string) => r.excluded.find((e) => e.matchId === t.ids[k]!.matchId)!.reasons
-    expect(why('a2')).toEqual(['completion_unknown'])
+    expect(r.excluded.some((e) => e.matchId === t.ids.a2!.matchId)).toBe(false)
     expect(why('a3')).toEqual(['early_ending_below_80_captured_minutes'])
     expect(r.excludedRecordings).toEqual([{ matchId: t.ids.a1!.matchId, recordingRevisionId: conflict.recordingRevisionId, reason: 'identity_conflict' }])
-    expect(r.windows[0]!.disclosures).toMatchObject({ manualConfirmation: ['a1', 'a5', 'a6'].map((k) => t.ids[k]!.matchId), earlyEnding: [t.ids.a6!.matchId] })
+    expect(r.windows[0]!.disclosures).toMatchObject({ manualConfirmation: ['a1', 'a5', 'a6'].map((k) => t.ids[k]!.matchId), earlyEnding: [t.ids.a6!.matchId], fullCaptureUnconfirmed: [t.ids.a2!.matchId] })
+    expect(r.windows[0]!.record).toMatchObject({ observedScores: 1, manualScores: 3 })
+    expect(r.matches.find((m) => m.matchId === t.ids.a2!.matchId)!.score).toMatchObject({ basis: 'observed' })
     expect(r.warnings).toEqual(expect.arrayContaining(['manual_confirmation_matches: completion was confirmed by the user, not signalled by the recording', expect.stringContaining('early_ending_matches_in_rates')]))
     expect(r.coverage).toBe('partial_for_window')
     // the selected recording of a1 is untouched by the conflicting one

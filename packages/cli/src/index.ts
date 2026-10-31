@@ -1,2 +1,6 @@
 export { main, SCHEMA_VERSION } from './main.ts'
 export type { Io } from './main.ts'
+export { RECORDINGS_SUBPATH, cleanPastedPath, findRecordingFolders, parseLibraryFolders, parseMcpGet, recordingsFolderFrom, registerMcp, runSetup, wantedMcp } from './setup.ts'
+export { quoteForCmd, resolveExecutable } from './io.ts'
+export type { ProcessResult, ProcessRunner, Prompter } from './io.ts'
+export { confirmFlow, pendingConfirmations } from './sync.ts'

@@ -342,6 +342,12 @@
                     "type": "null"
                   }
                 ]
+              },
+              "needsConfirmation": {
+                "type": "boolean"
+              },
+              "nextStep": {
+                "type": "string"
               }
             },
             "required": [
@@ -363,6 +369,27 @@
               "opponent"
             ],
             "additionalProperties": false
+          }
+        },
+        "newlyImported": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "file"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       },

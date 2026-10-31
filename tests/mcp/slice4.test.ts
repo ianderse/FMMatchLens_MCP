@@ -29,7 +29,7 @@ const EARLIER: SeasonMatch[] = [
   { key: 'e5', date: '2026-08-01', side: 'home', opponent: 'Echo Albion', goals: [{ tick: 6000, side: 'home' }, { tick: 13000, side: 'away' }], strikerAerials: { attempts: 9, won: 2 }, teamShots: { shots: 3, xg: 0.5 }, spongProgressive: 2 },
 ]
 const LATE: SeasonMatch[] = [
-  { key: 'u1', date: '2026-09-12', side: 'away', opponent: 'Foxtrot FC', goals: [{ tick: 8000, side: 'away' }], strikerAerials: { attempts: 4, won: 2 }, teamShots: { shots: 2, xg: 0.3 }, spongProgressive: 1 }, // never confirmed
+  { key: 'u1', date: '2026-09-12', side: 'away', opponent: 'Foxtrot FC', goals: [{ tick: 8000, side: 'away' }], strikerAerials: { attempts: 4, won: 2 }, teamShots: { shots: 2, xg: 0.3 }, spongProgressive: 1, periods: periodsOf(15600) }, // never confirmed, and the recording stops at 65 minutes (a partial recording waits for a confirmation)
   { key: 'p1', date: '2026-09-19', side: 'home', opponent: 'Golf Wanderers', periods: periodsOf(15600) }, // confirmed, but the recording stops at 65 minutes
 ]
 
@@ -103,7 +103,7 @@ describe('Slice 4 MCP: the section 14 definition of done, end to end', () => {
     expect(season.data.windows[0].matchIds).toEqual(five.map((x) => x.matchId))
     expect(season.data.matches.map((m: Json) => m.recordingRevisionId)).toEqual(five.map((x) => x.revisionId))
     expect(season.data.excluded).toEqual(expect.arrayContaining([
-      { matchId: cat.ids.u1!.matchId, date: '2026-09-12', reasons: ['completion_unknown'] },
+      { matchId: cat.ids.u1!.matchId, date: '2026-09-12', reasons: ['completion_unknown', 'early_ending_below_80_captured_minutes'], nextStep: 'fmmi sync' },
       { matchId: cat.ids.p1!.matchId, date: '2026-09-19', reasons: ['early_ending_below_80_captured_minutes'] },
     ]))
     expect(season.data.eligibleMatches).toBe(10)

@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
 import { LiveReader, LocalPluginClient } from '@fmmi/live'
+import { AutoImporter } from '@fmmi/store'
 import { CatalogHolder } from './catalog.ts'
 import { DEFAULT_MAX_BODY_BYTES, DEFAULT_PORT, DEFAULT_RATE_PER_MINUTE, PRIVATE_TRANSPORTS, newToken, startRemoteServer, validateRemoteConfig } from '@fmmi/remote'
 import type { PrivateTransport, RemoteConfig } from '@fmmi/remote'
@@ -12,13 +13,16 @@ import { TOOLS } from './tools.ts'
 
 const HELP = `fmmi-mcp - read-only MCP server over the fmmi catalog (stdio by default)
 
-  fmmi-mcp [--home <dir>] [--live]
+  fmmi-mcp [--home <dir>] [--live] [--no-auto-import]
   fmmi-mcp --http [--home <dir>] [--live] [--host 127.0.0.1] [--port ${DEFAULT_PORT}] [--token-env <NAME>] ...   (optional remote transport, OFF unless --http)
   fmmi-mcp --print-new-token
 
 The catalog home is --home, else FMMI_HOME, else %LOCALAPPDATA%\\fmmi. The server only reads: import recordings with the fmmi CLI.
 stdout carries the MCP protocol on stdio; diagnostics go to stderr. Set FMMI_DEBUG=1 to also write the stack of an unexpected error to stderr (clients still only see the opaque internal_error).
 
+--no-auto-import  Stdio only. By default the stdio server imports new finished recordings from the configured archive folder into the default save
+                  (fmmi setup) before serving a catalog-reading call, at most every 30 s. The folder and save come only from the operator's configuration,
+                  never from a client. --http never imports. In-progress match-<digits>.fmlens files are skipped.
 --live            Also serve get_live_match, get_live_player_analysis and get_recent_tactical_events from the LOCAL plugin (127.0.0.1:16726 only;
                   the address cannot be changed). Off by default; without it the tools are exactly the thirteen offline tools. UNVERIFIED against a real match.
 
@@ -43,15 +47,17 @@ export interface McpIo {
   /** TEST ONLY: the fake plugin port. No flag or variable reaches it. */
   livePort?: number
   out?: (s: string) => void
+  /** TEST ONLY: replaces the importer of the stdio server (a fake clock or folder). Ignored by --http, which never imports. */
+  autoImport?: Pick<AutoImporter, 'beforeCall' | 'run'>
 }
 
 interface Parsed {
-  home?: string; live: boolean; http: boolean; host: string; port: number; tokenEnv: string; allowNonLoopback: boolean; privateTransport: string | null
+  home?: string; live: boolean; autoImport: boolean; http: boolean; host: string; port: number; tokenEnv: string; allowNonLoopback: boolean; privateTransport: string | null
   allowHosts: string[]; allowOrigins: string[]; rate: number; maxBody: number; printToken: boolean
 }
 
 function parse(argv: string[]): Parsed | { error: string } | 'help' {
-  const p: Parsed = { live: false, http: false, host: '127.0.0.1', port: DEFAULT_PORT, tokenEnv: 'FMMI_MCP_TOKEN', allowNonLoopback: false, privateTransport: null, allowHosts: [], allowOrigins: [], rate: DEFAULT_RATE_PER_MINUTE, maxBody: DEFAULT_MAX_BODY_BYTES, printToken: false }
+  const p: Parsed = { live: false, autoImport: true, http: false, host: '127.0.0.1', port: DEFAULT_PORT, tokenEnv: 'FMMI_MCP_TOKEN', allowNonLoopback: false, privateTransport: null, allowHosts: [], allowOrigins: [], rate: DEFAULT_RATE_PER_MINUTE, maxBody: DEFAULT_MAX_BODY_BYTES, printToken: false }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!
     const eq = a.indexOf('=')
@@ -61,6 +67,7 @@ function parse(argv: string[]): Parsed | { error: string } | 'help' {
     switch (name) {
       case '--help': case '-h': return 'help'
       case '--live': p.live = true; break
+      case '--no-auto-import': p.autoImport = false; break
       case '--http': p.http = true; break
       case '--allow-non-loopback': p.allowNonLoopback = true; break
       case '--print-new-token': p.printToken = true; break
@@ -133,7 +140,10 @@ export async function main(argv: string[], io: McpIo = { env: process.env, err: 
     return 0
   }
 
-  const handle = serveStdio(() => createMcpServer(holder.get, stderrLogger, io.env, (s) => { process.stderr.write(s + '\n') }, { live }), { onerror: (e) => stderrLogger('transport_error', { errorName: e.name }) })
+  // Stdio only. The importer is the one write path of this server; it reads the operator's configuration, never anything a client sends.
+  const autoImport = parsed.autoImport ? (io.autoImport ?? new AutoImporter({ home: resolved, env: io.env, log: (e, f) => stderrLogger(e, f) })) : undefined
+  void autoImport?.run(true)
+  const handle = serveStdio(() => createMcpServer(holder.get, stderrLogger, io.env, (s) => { process.stderr.write(s + '\n') }, { live, autoImport }), { onerror: (e) => stderrLogger('transport_error', { errorName: e.name }) })
   stderrLogger('started', { tools: toolCount, live: !!live })
   await new Promise<void>((resolve) => {
     process.stdin.once('end', () => resolve())

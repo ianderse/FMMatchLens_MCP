@@ -73,11 +73,16 @@ describe('fmmi CLI (in process)', () => {
     const text = await fmmi('show', 'm_missing')
     expect(text.code).toBe(1); expect(text.err).toMatch(/^error not_found:/); expect(text.out).toBe('')
     expect((await fmmi('bogus')).code).toBe(2)
-    expect((await fmmi('list')).code).toBe(2) // missing --save
+    const noSave = await fmmi('list') // a fresh home has no save: --save is optional now, the error says what to do
+    expect(noSave.code).toBe(1)
+    expect(noSave.err).toMatch(/No save exists yet\. Run: fmmi setup/)
     expect((await fmmi('ingest', '--bogus')).code).toBe(2)
     const noScore = await fmmi('match', 'confirm', 'm_x')
     expect(noScore.code).toBe(2)
-    expect((await fmmi()).code).toBe(2)
+    const bare = await fmmi() // the home screen: not set up is one line and exit 0
+    expect(bare.code).toBe(0)
+    expect(bare.out).toMatch(/fmmi setup/)
+    expect((await fmmi('--help')).out).toMatch(/Start here/)
     const stack = JSON.stringify(body)
     expect(stack).not.toMatch(/at .*\(.*:\d+:\d+\)|node_modules/)
   })

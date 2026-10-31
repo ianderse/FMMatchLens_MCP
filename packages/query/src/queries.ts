@@ -73,6 +73,29 @@ export class MatchQueries {
     return { input, spec: resolveSpec(input, o.window) }
   }
 
+  // ---------------------------------------------------------------- references (read-only)
+  /** An explicit save id, else the configured default save, else the only save; otherwise a clear error. */
+  resolveSaveId(ref?: string): string { return this.svc.resolveSave(ref).saveId }
+  /** An explicit team id, else the managed team of the match (its managed side) or of the save. No managed team known: a clear error asking for teamId. */
+  resolveTeamId(teamId: string | undefined, scope: { matchId: string } | { saveId: string }): string {
+    if (teamId !== undefined) return teamId
+    const need = () => new DomainError('invalid_input', 'No managed team is known here; pass teamId (an id from list_matches)', { reason: 'team_required' })
+    if ('matchId' in scope) {
+      const m = this.svc.store.getMatch(scope.matchId)
+      if (!m) throw new DomainError('not_found', 'Match not found', { matchId: scope.matchId })
+      const mg = this.svc.store.getManagedTeam(m.saveId)
+      if (mg && (mg.teamId === m.homeTeamId || mg.teamId === m.awayTeamId)) return mg.teamId
+      const side = this.svc.listMatches(m.saveId).matches.find((x) => x.matchId === m.matchId)?.managedSide
+      if (side) return side === 'home' ? m.homeTeamId : m.awayTeamId
+      throw need()
+    }
+    const mg = this.svc.store.getManagedTeam(scope.saveId)
+    if (!mg) throw need()
+    return mg.teamId
+  }
+  /** A `pe_` id becomes that player's `p_` id in this match (`not_found` when the player did not appear in it); other ids pass through unchanged. */
+  resolvePlayerId(matchId: string, ref: string, recordingRevisionId?: string): string { return this.svc.resolvePlayer(matchId, ref, { revisionId: recordingRevisionId }) }
+
   // ---------------------------------------------------------------- catalog-level
 
   listMatches(o: ListOptions = {}) {
@@ -107,7 +130,8 @@ export class MatchQueries {
       matches: page.map((m) => {
         const managed = m.managedSide === null ? null : m[m.managedSide]
         const opp = m.managedSide === null ? null : m[m.managedSide === 'home' ? 'away' : 'home']
-        return { ...m, managedTeamId: managed?.teamId ?? null, opponent: opp ? { teamId: opp.teamId, name: opp.name } : null }
+        const needsConfirmation = m.status.completion === 'unknown' && m.status.coverage !== 'full_match'
+        return { ...m, managedTeamId: managed?.teamId ?? null, opponent: opp ? { teamId: opp.teamId, name: opp.name } : null, needsConfirmation, ...(needsConfirmation ? { nextStep: 'fmmi sync' } : {}) }
       }),
     }
   }

@@ -39,7 +39,7 @@ describe('fmmi report / player / network / service (synthetic fixture)', () => {
   it('AC1 all four commands produce JSON that validates against the result schema, with the section 6.4 envelope', async () => {
     const t = await setup()
     const rep = parse(okEnvelope(ReportResultSchema), (await t.fmmi('report', t.matchId, '--json')).out).data
-    expect(rep).toMatchObject({ matchId: t.matchId, recordingRevisionId: t.revisionId, metricDictionaryVersion: '1.2', query: 'report' })
+    expect(rep).toMatchObject({ matchId: t.matchId, recordingRevisionId: t.revisionId, metricDictionaryVersion: '1.3', query: 'report' })
     expect(rep.metrics.aerial_win_pct).toMatchObject({ version: 1, unit: 'percent' })
     expect(rep.teams.away).toMatchObject({ name: 'Farnham', managed: true, teamId: t.awayTeam })
     const striker = t.pidOf('Away Player 9'), sub = t.pidOf('Away Player 11')

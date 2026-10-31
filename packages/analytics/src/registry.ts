@@ -5,7 +5,7 @@ import type { NullReason } from '@fmmi/model'
  * (`npm run docs:metrics` regenerates the document; a test fails when the file is stale). A formula or threshold change
  * must bump the affected definition's version.
  */
-export const METRIC_DICTIONARY_VERSION = '1.2'
+export const METRIC_DICTIONARY_VERSION = '1.3'
 
 /**
  * Dictionary version history (rendered into docs/metrics.md). A dictionary version changes whenever a definition is added, removed
@@ -29,6 +29,12 @@ export const METRIC_DICTIONARY_HISTORY: ReadonlyArray<{ version: string; date: s
     summary: 'Slice 4 follow-up: chance creation by wing across matches (pooled counts and per-90 rates per attack lane, for and against the managed team) replaces the unavailable placeholder, and the stored season aggregate carries per-side lane counts (aggregate schema 2), so cached aggregates rebuild once.',
     added: [],
     changed: ['chance_creation_by_wing_trend (v1 unavailable -> v2 derived)'],
+  },
+  {
+    version: '1.3', date: '2026-10-31',
+    summary: 'Season eligibility policy version 2: a nonconflicting full-match capture counts in rates, totals and the record without a confirmation step (disclosed as full_capture_unconfirmed; completion stays unknown, the score is labelled observed and is not final). Partial and early-ending recordings still need a confirmation. A manual confirmation still takes precedence. Cached aggregates rebuild once.',
+    added: [],
+    changed: ['season_eligibility (policy v1 -> v2)'],
   },
 ]
 
@@ -468,10 +474,10 @@ export const RECEIVER_SEMANTICS = {
  * and tactical-change query. Rendered into docs/metrics.md from this object.
  */
 export const SEASON_POLICY = {
-  id: 'season_eligibility', version: 1,
-  rates: 'Nonconflicting completed or completed_manual matches with full_match capture; plus confirmed matches whose capture ends early with a trustworthy baseline, no gap or missing period, and at least the early-ending minimum of captured game minutes (disclosed as early_ending).',
-  totals: 'Only full_match captures. Observed totals never include unseen time, so an early-ending match is left out of totals with a reason. Win/draw/loss use the manual final score (labelled manual) or a verified final score.',
-  excluded: 'unknown or in_progress completion, unresolved identity conflicts, partial captures that are not early-ending or fall below the minimum, and undated matches (no in-game date, so no rolling order).',
+  id: 'season_eligibility', version: 2,
+  rates: 'Nonconflicting matches with full_match capture, whether completed, completed_manual or still unconfirmed (an unconfirmed full capture is disclosed as full_capture_unconfirmed; its completion stays unknown and its score is observed, not final); plus confirmed matches whose capture ends early with a trustworthy baseline, no gap or missing period, and at least the early-ending minimum of captured game minutes (disclosed as early_ending).',
+  totals: 'Only full_match captures. Observed totals never include unseen time, so an early-ending match is left out of totals with a reason. Win/draw/loss use the manual final score (labelled manual, and it takes precedence), a verified final score, or the observed score of an unconfirmed full-match capture (labelled observed, kept distinct from manual).',
+  excluded: 'in_progress completion, unknown completion on a capture that is not full-match (a partial recording waits for a confirmation: fmmi sync), unresolved identity conflicts, partial captures that are not early-ending or fall below the minimum, and undated matches (no in-game date, so no rolling order).',
   partialOptIn: 'includePartial shows recordings excluded only for partial capture in a separate block with its own pooled rates; they are never mixed into the main comparison.',
   ordering: 'In-game match date ascending, ties by import time then match id. A replayed fixture is a separate occurrence.',
   windows: [5, 10] as const,

@@ -4,8 +4,8 @@ export interface Parsed { positionals: string[]; flags: Map<string, string | tru
 
 const VALUE_FLAGS = new Set(['save', 'home', 'archive-dir', 'score', 'as', 'revision', 'recording-revision', 'team', 'compare', 'format', 'scope', 'from', 'to', 'from-minute', 'to-minute', 'period', 'min-passes', 'limit', 'season', 'cursor', 'players',
   'a-from', 'a-to', 'a-from-minute', 'a-to-minute', 'a-period', 'b-from', 'b-to', 'b-from-minute', 'b-to-minute', 'b-period',
-  'last', 'home-away', 'metrics', 'name', 'minute', 'setting', 'prior-value', 'new-value', 'text', 'before', 'after', 'match', 'alias', 'side', 'out', 'socket-seconds', 'boundary'])
-const BOOL_FLAGS = new Set(['json', 'new', 'allow-score-change', 'help', 'all-saves', 'include-partial', 'apply', 'live'])
+  'last', 'home-away', 'metrics', 'name', 'minute', 'setting', 'prior-value', 'new-value', 'text', 'before', 'after', 'match', 'alias', 'side', 'out', 'socket-seconds', 'boundary', 'save-name'])
+const BOOL_FLAGS = new Set(['json', 'new', 'allow-score-change', 'help', 'all-saves', 'include-partial', 'apply', 'live', 'yes', 'no-mcp', 'include-in-progress', 'all'])
 
 export function parseArgs(argv: string[]): Parsed {
   const positionals: string[] = []

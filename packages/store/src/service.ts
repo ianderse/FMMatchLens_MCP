@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { accessSync, constants, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { accessSync, constants, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, extname, join, resolve } from 'node:path'
 import {
   DomainError, MATCH_LOCAL_IDENTITY, PROJECTION_VERSION, SUPPORTED_FORMAT, applyConfirmation, baseCompletion, boundName, deriveResult, gameClockFromPeriods, parseScore, resolveDisplayMinute, toErrorBody,
@@ -12,6 +12,7 @@ import { aggregateKey, buildMatchAggregate } from '@fmmi/analytics'
 import type { AnalysisInput, MatchAggregate } from '@fmmi/analytics'
 import { nameKey, playerIdFor } from './ids.ts'
 import { linkPlayers, playerCatalog, rebuildPlayerIdentities, unlinkPlayer } from './identity.ts'
+import { resolveMatchRef, resolvePlayerRef, resolveSaveRef } from './refs.ts'
 import { SnapshotDir } from './snapshots.ts'
 import { SqliteCatalogStore, newId, observationsOf } from './sqliteStore.ts'
 import type { CatalogStore, IngestInsert, LiveNoteRow, MatchFields, MatchRow, RevisionRow, TacticalNoteRow } from './types.ts'
@@ -19,6 +20,10 @@ import type { CatalogStore, IngestInsert, LiveNoteRow, MatchFields, MatchRow, Re
 export interface ServiceConfig {
   home: string
   archiveDir?: string
+  /** The save used when a command or tool names none (set by `fmmi setup`). Flag, then FMMI_DEFAULT_SAVE, then config.json. */
+  defaultSaveId?: string
+  /** When set, the catalog gives up on a locked database after this many ms and a busy error propagates instead of becoming a rejected file (the MCP auto-import). */
+  busyTimeoutMs?: number
   maxFileBytes: number
   storageLimitBytes: number
   /** Open the catalog read-only: nothing is created, migrated or written (the MCP server). */
@@ -58,9 +63,25 @@ export function loadConfig(home: string, env: NodeJS.ProcessEnv = process.env, o
   return {
     home,
     archiveDir: overrides.archiveDir ?? env.FMMI_ARCHIVE_DIR ?? file.archiveDir,
+    defaultSaveId: overrides.defaultSaveId ?? env.FMMI_DEFAULT_SAVE ?? file.defaultSaveId,
+    busyTimeoutMs: overrides.busyTimeoutMs,
     maxFileBytes: overrides.maxFileBytes ?? file.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES,
     storageLimitBytes: overrides.storageLimitBytes ?? file.storageLimitBytes ?? DEFAULT_STORAGE_LIMIT_BYTES,
   }
+}
+
+/** Merges `patch` into config.json under `home` (other keys are kept; an undefined value removes the key). Written atomically. Setup is the only caller. */
+export function updateConfigFile(home: string, patch: Record<string, string | number | undefined>): void {
+  const p = join(home, 'config.json')
+  let cur: Record<string, unknown> = {}
+  if (existsSync(p)) {
+    try { cur = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown> } catch { throw new DomainError('invalid_input', 'config.json is not valid JSON', { reason: 'config' }) }
+  }
+  for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete cur[k]; else cur[k] = v }
+  mkdirSync(home, { recursive: true })
+  const tmpPath = `${p}.${process.pid}.tmp`
+  writeFileSync(tmpPath, JSON.stringify(cur, null, 2) + '\n')
+  renameSync(tmpPath, p)
 }
 
 export function seasonLabel(matchDate: string | null, seasonStart: string): string | null {
@@ -74,6 +95,10 @@ export function seasonLabel(matchDate: string | null, seasonStart: string): stri
   return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`
 }
 
+/** The plugin writes `match-<digits>.fmlens` while a match runs and renames it `<date>-<home>-vs-<away>-<h>-<a>.fmlens` when it ends (MatchArchiveStore.TrySetFinalFileName). */
+export const isInProgressName = (name: string): boolean => /^match-\d+\.fmlens$/i.test(name)
+export const isBusyError = (e: unknown): boolean => typeof (e as { code?: unknown } | null)?.code === 'string' && /^SQLITE_(BUSY|LOCKED)/.test((e as { code: string }).code)
+
 const sha256Hex = (b: Uint8Array) => createHash('sha256').update(b).digest('hex')
 
 export class CatalogService {
@@ -85,7 +110,7 @@ export class CatalogService {
     this.config = config
     this.decoder = decoder
     if (!config.readOnly) mkdirSync(config.home, { recursive: true })
-    this.store = store ?? new SqliteCatalogStore(join(config.home, 'catalog.sqlite'), { readOnly: config.readOnly })
+    this.store = store ?? new SqliteCatalogStore(join(config.home, 'catalog.sqlite'), { readOnly: config.readOnly, busyTimeoutMs: config.busyTimeoutMs })
     this.snapshots = new SnapshotDir(config.home)
   }
   close() { this.store.close() }
@@ -97,6 +122,12 @@ export class CatalogService {
     return this.store.createSave(n, new Date().toISOString())
   }
   listSaves() { return this.store.listSaves() }
+  /** Save id or name, else the default save, else the only save; otherwise a clear error. See refs.ts. */
+  resolveSave(ref?: string) { return resolveSaveRef(this, ref) }
+  /** `latest`, a match id or a unique team-name fragment. */
+  resolveMatch(ref: string, saveRef?: string) { return resolveMatchRef(this, ref, saveRef) }
+  /** A `p_` id, a `pe_` id of a player in this match, or (names) a unique name fragment. */
+  resolvePlayer(matchId: string, ref: string, opts: { revisionId?: string; names?: boolean } = {}) { return resolvePlayerRef(this, matchId, ref, opts) }
   private requireSave(saveId: string) {
     const s = this.store.getSave(saveId)
     if (!s) throw new DomainError('not_found', 'Save profile not found', { saveId })
@@ -107,7 +138,7 @@ export class CatalogService {
   async ingestPath(path: string, saveId: string): Promise<IngestResult[]> {
     this.requireSave(saveId)
     let st
-    try { st = lstatSync(path) } catch { throw new DomainError('not_found', 'Path does not exist', { path: basename(path) }) }
+    try { st = lstatSync(path) } catch { throw new DomainError('not_found', `Path does not exist: ${path}`, { path: basename(path) }) }
     if (st.isSymbolicLink()) throw new DomainError('invalid_input', 'Symbolic links are not followed', { reason: 'symlink' })
     if (st.isDirectory()) return this.ingestDir(path, saveId)
     return [await this.ingestFile(path, saveId)]
@@ -126,14 +157,60 @@ export class CatalogService {
     return out
   }
 
-  /** `ingest --new`: the configured archive directory, reporting only files not already in this save. */
-  async ingestNew(saveId: string): Promise<{ results: IngestResult[]; skippedAlreadyIngested: number }> {
+  /**
+   * `ingest --new`: the configured archive directory, reporting only files not already in this save. A file the plugin is still writing
+   * (`match-<digits>.fmlens`, renamed when the match ends) is skipped unless `includeInProgress`, because importing it stores a partial.
+   */
+  async ingestNew(saveId: string, opts: { includeInProgress?: boolean } = {}): Promise<{ results: IngestResult[]; skippedAlreadyIngested: number; skippedInProgress: string[] }> {
     this.requireSave(saveId)
+    const dir = this.requireArchiveDir()
+    const all: IngestResult[] = []
+    const skippedInProgress: string[] = []
+    for (const f of this.listArchiveFiles(dir)) {
+      if (opts.includeInProgress === false && isInProgressName(basename(f))) { skippedInProgress.push(basename(f)); continue }
+      all.push(await this.ingestFile(f, saveId))
+    }
+    return { results: all.filter((r) => r.status !== 'already_ingested'), skippedAlreadyIngested: all.filter((r) => r.status === 'already_ingested').length, skippedInProgress }
+  }
+
+  /**
+   * Read-only look at the finished recordings of a folder (at most `max`): the names of the clubs a human manager controlled, most frequent first.
+   * Nothing is stored and nothing in the folder is touched. Used by setup to name a new save.
+   */
+  async peekManagedClubs(dir: string, max = 6): Promise<string[]> {
+    const tally = new Map<string, number>()
+    for (const f of this.listArchiveFiles(dir).filter((x) => !isInProgressName(basename(x))).slice(0, max)) {
+      try {
+        const st = lstatSync(f)
+        if (!st.isFile() || st.isSymbolicLink() || st.size > this.config.maxFileBytes) continue
+        const rec = (await this.decoder.decode(readFileSync(f), { fileName: basename(f), limits: { maxFileBytes: this.config.maxFileBytes } })).recording
+        if (rec.humanControlledSide) { const n = rec.teams[rec.humanControlledSide].name; tally.set(n, (tally.get(n) ?? 0) + 1) }
+      } catch { /* an unreadable file is simply not evidence */ }
+    }
+    return [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
+  }
+
+  /** The configured archive directory, or a friendly domain error naming the fix. */
+  requireArchiveDir(): string {
     const dir = this.config.archiveDir
-    if (!dir) throw new DomainError('not_found', 'No archive directory configured (set FMMI_ARCHIVE_DIR, --archive-dir or config.json archiveDir)', { reason: 'archive_dir_unset' })
-    if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new DomainError('not_found', 'Configured archive directory does not exist', { reason: 'archive_dir_missing' })
-    const all = await this.ingestDir(dir, saveId)
-    return { results: all.filter((r) => r.status !== 'already_ingested'), skippedAlreadyIngested: all.filter((r) => r.status === 'already_ingested').length }
+    if (!dir) throw new DomainError('not_found', 'No recordings folder is configured yet. Run: fmmi setup', { reason: 'archive_dir_unset' })
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new DomainError('not_found', `The recordings folder does not exist: ${dir}. Run: fmmi setup`, { reason: 'archive_dir_missing', path: dir })
+    return dir
+  }
+
+  /** Cheap, read-only: finished `.fmlens` files in the archive directory whose file name no stored revision has been imported from. No hashing. */
+  newRecordingFiles(saveId: string): { files: string[]; inProgress: string[] } {
+    const dir = this.config.archiveDir
+    if (!dir || !existsSync(dir)) return { files: [], inProgress: [] }
+    const known = new Set<string>()
+    for (const m of this.store.listMatches(saveId)) for (const r of this.store.listRevisions(m.matchId)) for (const l of this.store.listLocators(r.recordingRevisionId)) known.add(l)
+    const files: string[] = [], inProgress: string[] = []
+    for (const f of this.listArchiveFiles(dir).map((x) => basename(x))) {
+      if (known.has(f)) continue
+      if (isInProgressName(f)) inProgress.push(f)
+      else files.push(f)
+    }
+    return { files, inProgress }
   }
 
   async ingestFile(path: string, saveId: string): Promise<IngestResult> {
@@ -141,6 +218,7 @@ export class CatalogService {
     try {
       return await this.ingestFileInner(path, saveId, file)
     } catch (e) {
+      if (this.config.busyTimeoutMs !== undefined && isBusyError(e)) throw e
       return { file, status: 'rejected', warnings: [], error: toErrorBody(e) }
     }
   }
@@ -780,7 +858,7 @@ export class CatalogService {
       add('store_home', 'ok', 'writable')
     } catch { add('store_home', 'fail', 'store home is not writable') }
     const dir = this.config.archiveDir
-    if (!dir) add('archive_dir', 'warn', 'not configured (needed only for `ingest --new`)')
+    if (!dir) add('archive_dir', 'warn', 'not configured (run `fmmi setup`)')
     else if (!existsSync(dir)) add('archive_dir', 'warn', 'configured directory does not exist')
     else add('archive_dir', 'ok', `${this.listArchiveFiles(dir).length} .fmlens file(s)`)
     const used = this.store.snapshotBytesTotal()

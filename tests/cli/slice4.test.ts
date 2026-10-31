@@ -46,9 +46,16 @@ describe('Slice 4 CLI', () => {
     expect(r.err).toMatch(/no managed team/)
     const unconfirmed = await j('trends', '--save', saveId, '--team', teamId)
     expect(unconfirmed.code).toBe(0)
-    expect(unconfirmed.body.data.eligibleMatches).toBe(0)
-    expect(unconfirmed.body.data.excluded.map((e: Json) => e.reasons)).toEqual(specs.map(() => ['completion_unknown']))
-    expect(unconfirmed.body.data.warnings.some((w: string) => w.startsWith('no_eligible_matches'))).toBe(true)
+    // Full-match captures count without a confirmation: eligible, disclosed, observed (not final) record, completion still unknown.
+    expect(unconfirmed.body.data.eligibleMatches).toBe(specs.length)
+    expect(unconfirmed.body.data.excluded).toEqual([])
+    const w = unconfirmed.body.data.windows[0]
+    expect(w.disclosures.fullCaptureUnconfirmed).toEqual(specs.map((s) => ids[s.key]!.matchId))
+    expect(w.record).toMatchObject({ matches: specs.length, manualScores: 0, observedScores: specs.length, withoutFinalScore: 0 })
+    expect(unconfirmed.body.data.matches.every((m: Json) => m.score.basis === 'observed')).toBe(true)
+    const shown = await run('trends', '--save', saveId, '--team', teamId)
+    expect(shown.out).toMatch(/observed/)
+    expect((await j('show', ids[specs[0]!.key]!.matchId)).body.data.status.completion.status).toBe('unknown')
   })
 
   it('AC assisted managed-team detection, an explicit set, and club aliases drive --team; the output validates against the published schema', async () => {

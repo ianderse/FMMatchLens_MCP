@@ -49,18 +49,18 @@ export function renderTrends(r: TrendsOut, o: { review?: boolean } = {}): string
   const L: string[] = []
   L.push(`${o.review ? 'Rolling review' : 'Season trends'}: ${t(r.team.name)} (${r.team.teamId}) in save ${r.saveId}   coverage ${r.coverage}   dictionary ${r.metricDictionaryVersion}`)
   L.push(`Aggregates (${r.source.aggregateKey}): ${r.source.aggregates} used, ${r.source.servedFromCatalog} from the catalog cache, ${r.source.builtThisCall} built this call`)
-  L.push(`Eligible matches: ${r.eligibleMatches}. Policy ${r.policy.id} v${r.policy.version}: rates need confirmed completion and full-match capture, or an early-ending capture of at least ${r.policy.earlyEndingMinCapturedMinutes} minutes (${r.policy.earlyEndingLabel}); see ${r.policy.documented}`)
+  L.push(`Eligible matches: ${r.eligibleMatches}. Policy ${r.policy.id} v${r.policy.version}: rates need a full-match capture (a confirmation is not required; an unconfirmed full recording is labelled observed, not final), or a confirmed early-ending capture of at least ${r.policy.earlyEndingMinCapturedMinutes} minutes (${r.policy.earlyEndingLabel}); see ${r.policy.documented}`)
   const byId = new Map(r.matches.map((m) => [m.matchId, m]))
   for (const w of r.windows) {
     L.push('')
     L.push(`Last ${w.lastN} eligible match(es): ${w.matchIds.length} used${w.sameMatchesAsWindow ? ` (the same matches as the last ${w.sameMatchesAsWindow}; figures above)` : ''}`)
     for (const m of w.matchIds.map((id) => byId.get(id)!)) {
       const sc = m.score ? `${m.score.for}-${m.score.against} ${m.score.outcome} (${m.score.basis})` : 'no final score'
-      const flags = [m.class === 'early_ending' ? `EARLY-ENDING ${m.capturedMinutes.toFixed(1)} min` : '', m.disclosures.includes('manual_confirmation') ? 'manual confirmation' : ''].filter(Boolean).join(', ')
+      const flags = [m.class === 'early_ending' ? `EARLY-ENDING ${m.capturedMinutes.toFixed(1)} min` : '', m.disclosures.includes('manual_confirmation') ? 'manual confirmation' : '', m.disclosures.includes('full_capture_unconfirmed') ? 'score observed, not confirmed' : ''].filter(Boolean).join(', ')
       L.push(`  ${m.date ?? 'no date'}  ${m.side.padEnd(4)} v ${t(m.opponent.name).padEnd(22)} ${sc}  ${m.matchId}  ${m.recordingRevisionId}${flags ? `  [${flags}]` : ''}`)
     }
     const rec = w.record
-    L.push(`  Record: ${rec.won}W ${rec.drawn}D ${rec.lost}L from ${rec.matches} final score(s), ${rec.manualScores} manual`)
+    L.push(`  Record: ${rec.won}W ${rec.drawn}D ${rec.lost}L from ${rec.matches} score(s): ${rec.manualScores} manual, ${(rec as { observedScores?: number }).observedScores ?? 0} observed (not confirmed)`)
     const tt = w.totals
     const f2 = (v: unknown) => (typeof v === 'number' ? v.toFixed(2) : 'n/a')
     L.push(`  Totals (full-match captures only, ${tt.matches} match(es), ${(tt.minutes as number).toFixed(1)} min): goals ${tt.goalsFor}-${tt.goalsAgainst}, xG ${f2(tt.xgFor)}-${f2(tt.xgAgainst)}, shots ${tt.shotsFor}-${tt.shotsAgainst}`)
@@ -75,7 +75,7 @@ export function renderTrends(r: TrendsOut, o: { review?: boolean } = {}): string
   if (r.excluded.length) {
     L.push('')
     L.push('Excluded from the default comparison:')
-    for (const e of r.excluded) L.push(`  ${e.matchId} (${e.date ?? 'no date'}): ${e.reasons.join(', ')}`)
+    for (const e of r.excluded) L.push(`  ${e.matchId} (${e.date ?? 'no date'}): ${e.reasons.join(', ')}${(e as { nextStep?: string }).nextStep ? `   -> ${(e as { nextStep?: string }).nextStep} (confirm the final score)` : ''}`)
   }
   for (const e of r.excludedRecordings) L.push(`  recording ${e.recordingRevisionId} of ${e.matchId}: ${e.reason}`)
   const part = (r as { partial?: { matches: Array<{ matchId: string; capturedMinutes: number; reasons: string[] }>; rates: RowLike[] } | null }).partial

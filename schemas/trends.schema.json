@@ -188,6 +188,9 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "nextStep": {
+                "type": "string"
               }
             },
             "required": [

@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "description": "FM27 match intelligence (see FM27_FMMatchLens_Match_Intelligence_MCP_Spec.md). Slice 5: offline importer, fmmi CLI, season history, the read-only fmmi-mcp server (stdio, optional authenticated Streamable HTTP) and the optional loopback live reader.",
+  "bin": {
+    "fmmi": "packages/cli/bin/fmmi.mjs",
+    "fmmi-mcp": "packages/mcp/bin/fmmi-mcp.mjs"
+  },
   "engines": {
     "node": ">=22.18"
   },

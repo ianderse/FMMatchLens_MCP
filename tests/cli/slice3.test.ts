@@ -30,7 +30,8 @@ describe('fmmi list / summary / compare / status', () => {
     expect(list.data.matches[0]!.opponent).not.toBeNull()
     const next = okEnvelope(ListDataSchema).parse(JSON.parse((await fmmi('list', '--save', seed.saveId, '--limit', '1', '--cursor', list.data.page.nextCursor!, '--json')).out))
     expect(next.data.matches[0]!.matchId).not.toBe(list.data.matches[0]!.matchId)
-    expect((await fmmi('list')).code).toBe(2) // --save or --all-saves is required
+    expect((await fmmi('list')).code).toBe(0) // --save is optional: the only save is the default
+    expect(okEnvelope(ListDataSchema).parse(JSON.parse((await fmmi('list', '--json')).out)).data.saveId).toBe(seed.saveId)
     expect(okEnvelope(ListDataSchema).parse(JSON.parse((await fmmi('list', '--all-saves', '--json')).out)).data.saveId).toBeNull()
 
     const sum = okEnvelope(SummaryResultSchema).parse(JSON.parse((await fmmi('summary', seed.matchId, '--json')).out))

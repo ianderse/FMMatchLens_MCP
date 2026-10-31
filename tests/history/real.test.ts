@@ -49,7 +49,7 @@ describe.skipIf(!HAS_REAL)('Slice 4 on the real recording', () => {
   it('AC unconfirmed, the real match is excluded with a reason and shown only by the explicit partial opt-in', async () => {
     const r = await q.seasonTrends({ saveId, teamId })
     expect(r.eligibleMatches).toBe(0)
-    expect(r.excluded).toEqual([{ matchId, date: '2026-08-31', reasons: ['completion_unknown'] }])
+    expect(r.excluded).toEqual([{ matchId, date: '2026-08-31', reasons: ['completion_unknown'], nextStep: 'fmmi sync' }])
     expect(r.windows.every((w) => w.matchIds.length === 0)).toBe(true)
     expect(r.coverage).toBe('unavailable')
     expect(r.warnings.some((w) => w.startsWith('no_eligible_matches'))).toBe(true)
@@ -109,7 +109,7 @@ describe.skipIf(!HAS_REAL)('Slice 4 on the real recording', () => {
     sizes.get_player_trends = bytes(t)
     expect(sizes.get_player_trends).toBeLessThan(20 * 1024)
     expect(t.players[0]!.windows[0]!.matchIds).toEqual([matchId])
-    expect(t.players[0]!.excluded).toEqual([{ matchId: r.matchId, date: '2026-09-07', reasons: ['completion_unknown'] }])
+    expect(t.players[0]!.excluded).toEqual([{ matchId: r.matchId, date: '2026-09-07', reasons: ['completion_unknown'], nextStep: 'fmmi sync' }])
     // receiver-based metrics respect the per-recording section 7.2 gate (whatever it measured on this recording)
     const gate = (await q.summary(matchId)).summary.evidenceQuality.recipientGate.home.status
     const recv = t.players[0]!.windows[0]!.rates.find((x) => x.metric === 'passes_received_per_90')!
