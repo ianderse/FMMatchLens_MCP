@@ -2,7 +2,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
 import { LiveReader, LocalPluginClient } from '@fmmi/live'
-import { AutoImporter } from '@fmmi/store'
+import { AutoImporter, CodeFreshness } from '@fmmi/store'
 import { CatalogHolder } from './catalog.ts'
 import { DEFAULT_MAX_BODY_BYTES, DEFAULT_PORT, DEFAULT_RATE_PER_MINUTE, PRIVATE_TRANSPORTS, newToken, startRemoteServer, validateRemoteConfig } from '@fmmi/remote'
 import type { PrivateTransport, RemoteConfig } from '@fmmi/remote'
@@ -110,6 +110,8 @@ export async function main(argv: string[], io: McpIo = { env: process.env, err: 
     }
   }
   const toolCount = TOOLS.length + (live ? 3 : 0)
+  const code = new CodeFreshness()
+  const codeChanged = () => code.changed()
 
   if (parsed.http) {
     const cfg: RemoteConfig = {
@@ -126,7 +128,7 @@ export async function main(argv: string[], io: McpIo = { env: process.env, err: 
       holder.close(); live?.reader.close()
       return 2
     }
-    const remote = await startRemoteServer(cfg, () => createMcpServer(holder.get, stderrLogger, io.env, (s) => { process.stderr.write(s + '\n') }, { live }), stderrLogger)
+    const remote = await startRemoteServer(cfg, () => createMcpServer(holder.get, stderrLogger, io.env, (s) => { process.stderr.write(s + '\n') }, { live, codeChanged }), stderrLogger)
     stderrLogger('started', { transport: 'streamable-http', tools: toolCount, live: !!live, bind: parsed.host, port: remote.port, loopback: parsed.host === '127.0.0.1' || parsed.host === '::1' || parsed.host === 'localhost' })
     io.onListening?.(remote.url)
     await new Promise<void>((resolve) => {
@@ -143,7 +145,7 @@ export async function main(argv: string[], io: McpIo = { env: process.env, err: 
   // Stdio only. The importer is the one write path of this server; it reads the operator's configuration, never anything a client sends.
   const autoImport = parsed.autoImport ? (io.autoImport ?? new AutoImporter({ home: resolved, env: io.env, log: (e, f) => stderrLogger(e, f) })) : undefined
   void autoImport?.run(true)
-  const handle = serveStdio(() => createMcpServer(holder.get, stderrLogger, io.env, (s) => { process.stderr.write(s + '\n') }, { live, autoImport }), { onerror: (e) => stderrLogger('transport_error', { errorName: e.name }) })
+  const handle = serveStdio(() => createMcpServer(holder.get, stderrLogger, io.env, (s) => { process.stderr.write(s + '\n') }, { live, autoImport, codeChanged }), { onerror: (e) => stderrLogger('transport_error', { errorName: e.name }) })
   stderrLogger('started', { tools: toolCount, live: !!live })
   await new Promise<void>((resolve) => {
     process.stdin.once('end', () => resolve())

@@ -193,6 +193,8 @@ No real model transcript is included in this repository: the samples in `tests/m
 - `not_found` with `details.reason = "catalog_missing"`: nothing imported under that `FMMI_HOME` yet (run `fmmi setup`).
 - Claude Code does not show the tools: start a new session, run `/mcp`, and check `claude mcp get fmmi` from another folder. A local-scope entry for the
   repository folder overrides the user one there; `fmmi setup` offers to remove it.
+- A `server_outdated` warning, or a fix that does not seem to apply: Claude Code keeps the server it started, so a session left open across an update runs
+  the old code. Start a new session. The server compares its source files' modification times with those at startup, at most once a minute, and warns.
 - `unsupported_version` on start of a tool call: the catalog was created by a different build; run any `fmmi` command once.
 - `revision_unavailable`: the pinned revision does not belong to that match, or its retained snapshot cannot be read.
 - Node errors about `.ts` files: use Node >= 22.18.

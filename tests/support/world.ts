@@ -93,7 +93,8 @@ export interface Rig { out: string[]; err: string[]; io: Io; run: (...args: stri
 
 export function rig(w: World, over: Partial<Io> = {}): Rig {
   const out: string[] = [], err: string[] = []
-  const io: Io = { out: (s) => out.push(s), err: (s) => err.push(s), env: { FMMI_HOME: w.home }, steamRoots: [w.steam], ...over }
+  // livePort 1 is closed: a running game on the real port must not change what these tests see.
+  const io: Io = { out: (s) => out.push(s), err: (s) => err.push(s), env: { FMMI_HOME: w.home }, steamRoots: [w.steam], livePort: 1, ...over }
   return {
     out, err, io,
     async run(...args) {
